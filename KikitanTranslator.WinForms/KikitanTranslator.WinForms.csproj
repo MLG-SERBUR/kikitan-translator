@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0-windows</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+        <UseWindowsForms>true</UseWindowsForms>
+        <AssemblyName>KikitanTranslator.WinForms</AssemblyName>
+        <RootNamespace>KikitanTranslator.WinForms</RootNamespace>
+        <!-- FORK (feed-overlay): native WinForms host. No webview/WebView2. -->
+    </PropertyGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+      <PackageReference Include="OscCore" Version="1.0.5" />
+      <PackageReference Include="Serilog" Version="4.3.1" />
+      <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+      <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+      <PackageReference Include="VRChat.OSCQuery" Version="0.0.7" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\KikitanTranslator.Base\KikitanTranslator.Base.csproj" />
+      <ProjectReference Include="..\KikitanTranslator.Resources\KikitanTranslator.Resources.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <!-- Silero VAD model, shared with the upstream Photino host. -->
+        <Content Include="..\KikitanTranslator.Photino\Resources\wwwroot\silero_vad.onnx">
+            <Link>silero_vad.onnx</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </Content>
+    </ItemGroup>
+
+    <!-- FORK (feed-overlay): build the overlay and stage it next to this exe,
+         since AppEngine launches KikitanTranslator.Overlay.exe from the app dir. -->
+    <Target Name="BuildAndStageOverlay" AfterTargets="Build">
+        <MSBuild Projects="..\KikitanTranslator.Overlay\KikitanTranslator.Overlay.csproj"
+                 Properties="Configuration=$(Configuration);EnableWindowsTargeting=true"
+                 Targets="Build" />
+        <ItemGroup>
+            <OverlayFiles Include="..\KikitanTranslator.Overlay\bin\$(Configuration)\$(TargetFramework)\**\*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(OverlayFiles)"
+              DestinationFiles="@(OverlayFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+    </Target>
+
+</Project>

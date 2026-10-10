@@ -7,6 +7,8 @@ public partial class Form1 : Form
     private Image img;
     private int time;
     private Bitmap _backBuffer;
+    // FORK (feed-overlay): feed frames persist until replaced (no clear timer).
+    private bool _feedMode;
 
     public Form1(Rectangle bounds)
     {
@@ -56,8 +58,8 @@ public partial class Form1 : Form
 
             if (img != null)
             {
-                int w = this.Width / 5;
-                int h = img.Height / (img.Width / (this.Width / 5));
+                int w = this.Width / (_feedMode ? 4 : 5);
+                int h = img.Height / (img.Width / (this.Width / (_feedMode ? 4 : 5)));
                 int x = (this.Width - w) / 2;
                 int y = this.Height - h - 50;
 
@@ -75,6 +77,7 @@ public partial class Form1 : Form
 
     public void SetImage(Image newImg, int timeLeft)
     {
+        _feedMode = false;
         var old = Interlocked.Exchange(ref img, newImg);
         old?.Dispose();
 
@@ -87,7 +90,7 @@ public partial class Form1 : Form
             Image captured = this.img;
             Console.WriteLine($"Waiting {timeLeft}ms...");
             Thread.Sleep(timeLeft);
-            if (this.img != captured) return;
+            if (this.img != captured || _feedMode) return;
 
             var cleared = Interlocked.Exchange(ref img, null);
             cleared?.Dispose();
@@ -95,6 +98,26 @@ public partial class Form1 : Form
             Invoke(RebuildBackBuffer);
             Console.WriteLine("Image cleared.");
         });
+    }
+
+    // FORK (feed-overlay): persistent feed frame (desktop overlay).
+    public void SetFeedImage(Image newImg)
+    {
+        _feedMode = true;
+        var old = Interlocked.Exchange(ref img, newImg);
+        old?.Dispose();
+
+        Invoke(RebuildBackBuffer);
+    }
+
+    // FORK (feed-overlay)
+    public void ClearImage()
+    {
+        _feedMode = false;
+        var cleared = Interlocked.Exchange(ref img, null);
+        cleared?.Dispose();
+
+        Invoke(RebuildBackBuffer);
     }
 
     private const int GWL_EXSTYLE = -20;

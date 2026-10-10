@@ -328,6 +328,122 @@ public class ConfigObject : INotifyPropertyChanged
 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    // FORK (feed-overlay): overlay/feed settings. Additive only; unknown to
+    // upstream builds, which ignore extra JSON members on load.
+    [JsonProperty("overlay_max_entries")] private int _overlayMaxEntries = 6;
+
+    [JsonIgnore]
+    public int OverlayMaxEntries
+    {
+        get => _overlayMaxEntries;
+        set
+        {
+            if (_overlayMaxEntries != value)
+            {
+                _overlayMaxEntries = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_font_size")] private int _overlayFontSize = 64;
+
+    [JsonIgnore]
+    public int OverlayFontSize
+    {
+        get => _overlayFontSize;
+        set
+        {
+            if (_overlayFontSize != value)
+            {
+                _overlayFontSize = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_opacity")] private int _overlayOpacity = 85;
+
+    [JsonIgnore]
+    public int OverlayOpacity
+    {
+        get => _overlayOpacity;
+        set
+        {
+            if (_overlayOpacity != value)
+            {
+                _overlayOpacity = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // 0 = HMD, 1 = left hand/controller, 2 = right hand/controller
+    [JsonProperty("overlay_anchor")] private int _overlayAnchor = 0;
+
+    [JsonIgnore]
+    public int OverlayAnchor
+    {
+        get => _overlayAnchor;
+        set
+        {
+            if (_overlayAnchor != value)
+            {
+                _overlayAnchor = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_width_cm")] private int _overlayWidthCm = 90;
+
+    [JsonIgnore]
+    public int OverlayWidthCm
+    {
+        get => _overlayWidthCm;
+        set
+        {
+            if (_overlayWidthCm != value)
+            {
+                _overlayWidthCm = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_show_timestamps")] private bool _overlayShowTimestamps = true;
+
+    [JsonIgnore]
+    public bool OverlayShowTimestamps
+    {
+        get => _overlayShowTimestamps;
+        set
+        {
+            if (_overlayShowTimestamps != value)
+            {
+                _overlayShowTimestamps = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("desktop_overlay_enabled")] private bool _desktopOverlayEnabled = true;
+
+    [JsonIgnore]
+    public bool DesktopOverlayEnabled
+    {
+        get => _desktopOverlayEnabled;
+        set
+        {
+            if (_desktopOverlayEnabled != value)
+            {
+                _desktopOverlayEnabled = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    // END FORK
+
     protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

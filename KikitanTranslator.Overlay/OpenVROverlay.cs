@@ -17,6 +17,14 @@ public class OpenVROverlay : Application
     private float overlayDistance = -1.5f;
     private float verticalOffset = -0.55f;
 
+    // FORK (feed-overlay): 0=HMD, 1=left hand, 2=right hand. Feed display state.
+    private int _anchor;
+    private readonly object _feedLock = new();
+    private MemoryStream? _pendingFeed;
+    private FeedPipeConfig? _pendingFeedConfig;
+    private DateTime _legacyHideAt = DateTime.MinValue;
+    private bool _feedActive;
+
     public OpenVROverlay() : base(ApplicationType.Overlay)
     {
         Console.WriteLine("Starting overlay...");
@@ -31,6 +39,20 @@ public class OpenVROverlay : Application
         images = new List<ImageData>();
     }
 
+    /// <summary>
+    /// FORK (feed-overlay): queue a freshly rendered feed frame. Displayed
+    /// persistently (no auto-hide); replaces any previous feed frame.
+    /// </summary>
+    public void ShowFeed(MemoryStream png, FeedPipeConfig config)
+    {
+        lock (_feedLock)
+        {
+            _pendingFeed?.Dispose();
+            _pendingFeed = png;
+            _pendingFeedConfig = config;
+        }
+    }
+
     private void UpdateOverlayTransforms()
     {
         var system = OpenVR.System;
@@ -40,17 +62,36 @@ public class OpenVROverlay : Application
             return;
         }
 
-        var leftEye = system.GetEyeToHeadTransform(EVREye.Eye_Left);
+        // FORK (feed-overlay): anchor presets. Hand anchors fall back to HMD
+        // when the controller isn't tracked.
+        uint device = OpenVR.k_unTrackedDeviceIndex_Hmd;
+        float x = 0f, y = verticalOffset, z = overlayDistance;
+
+        if (_anchor == 1 || _anchor == 2)
+        {
+            var role = _anchor == 1 ? ETrackedControllerRole.LeftHand : ETrackedControllerRole.RightHand;
+            uint hand = system.GetTrackedDeviceIndexForControllerRole(role);
+            if (hand != OpenVR.k_unTrackedDeviceIndexInvalid)
+            {
+                device = hand;
+                x = 0f;
+                y = 0.14f;
+                z = -0.24f;
+            }
+        }
+
+        if (device == OpenVR.k_unTrackedDeviceIndex_Hmd)
+            x = system.GetEyeToHeadTransform(EVREye.Eye_Left).m3;
 
         HmdMatrix34_t overlayTransform = new HmdMatrix34_t
         {
-            m0 = 1, m1 = 0, m2 = 0, m3 = leftEye.m3,
-            m4 = 0, m5 = 1, m6 = 0, m7 = verticalOffset,
-            m8 = 0, m9 = 0, m10 = 1, m11 = overlayDistance
+            m0 = 1, m1 = 0, m2 = 0, m3 = x,
+            m4 = 0, m5 = 1, m6 = 0, m7 = y,
+            m8 = 0, m9 = 0, m10 = 1, m11 = z
         };
 
         var err = OpenVR.Overlay.SetOverlayTransformTrackedDeviceRelative(
-            overlay.Handle, OpenVR.k_unTrackedDeviceIndex_Hmd, ref overlayTransform);
+            overlay.Handle, device, ref overlayTransform);
 
         if (err != EVROverlayError.None)
         {
@@ -65,36 +106,80 @@ public class OpenVROverlay : Application
 
     public void ImageLoop()
     {
+        // FORK (feed-overlay): restructured loop. Transforms update every tick
+        // (required for hand tracking); feed frames display persistently; the
+        // legacy single-message path keeps its timed show/hide via deadlines.
+        string fileName = Path.Combine(Path.GetTempPath(), "kikitan_overlay.png");
+
         while (true)
         {
-            if (images.Count == 0)
-            {
-                Thread.Sleep(10);
-                continue;
-            }
-
             UpdateOverlayTransforms();
 
-            string fileName = Path.Combine(Path.GetTempPath(), "kikitan_overlay.png");
-            Console.WriteLine("Saving overlay as file...");
-
-            using (Image image = Image.FromStream(images[0].image))
+            MemoryStream? feed = null;
+            FeedPipeConfig? feedConfig = null;
+            lock (_feedLock)
             {
-                image.Save(fileName);
+                feed = _pendingFeed;
+                _pendingFeed = null;
+                feedConfig = _pendingFeedConfig;
+                _pendingFeedConfig = null;
             }
 
-            overlay.Show();
-            overlay.SetTextureFromFile(fileName);
+            if (feed != null)
+            {
+                try
+                {
+                    using (feed)
+                    using (Image image = Image.FromStream(feed))
+                        image.Save(fileName);
 
-            Thread.Sleep(images[0].time);
+                    if (feedConfig != null)
+                    {
+                        _anchor = Math.Clamp(feedConfig.Anchor, 0, 2);
+                        overlay.WidthInMeters = Math.Clamp(feedConfig.WidthCm / 100f, 0.2f, 3f);
+                        overlay.Alpha = Math.Clamp(feedConfig.Opacity / 100f, 0.1f, 1f);
+                    }
 
-            if (images.Count == 1)
-                images.Clear();
-            else
+                    overlay.Show();
+                    overlay.SetTextureFromFile(fileName);
+                    _feedActive = true;
+                    _legacyHideAt = DateTime.MinValue;
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Feed display failed: {e.Message}");
+                }
+            }
+            else if (!_feedActive && images.Count > 0)
+            {
+                try
+                {
+                    using (Image image = Image.FromStream(images[0].image))
+                        image.Save(fileName);
+
+                    overlay.WidthInMeters = 0.8f;
+                    overlay.Alpha = 0.8f;
+                    overlay.Show();
+                    overlay.SetTextureFromFile(fileName);
+                    _legacyHideAt = DateTime.Now.AddMilliseconds(images[0].time);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine($"Legacy overlay display failed: {e.Message}");
+                }
+
                 images.RemoveAt(0);
+            }
 
-            Console.WriteLine("Hiding overlay...");
-            overlay.Hide();
+            if (!_feedActive && _legacyHideAt != DateTime.MinValue
+                && DateTime.Now >= _legacyHideAt && images.Count == 0)
+            {
+                Console.WriteLine("Hiding overlay...");
+                overlay.Hide();
+                _legacyHideAt = DateTime.MinValue;
+            }
+
+            Thread.Sleep(16);
         }
     }
 }

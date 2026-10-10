@@ -1,0 +1,88 @@
+# Fork notes — `feed-overlay` branch
+
+Fork of [YusufOzmen01/kikitan-translator](https://github.com/YusufOzmen01/kikitan-translator)
+(`upstream` remote). This branch adds a VRCT-style in-memory translation feed
+and a native Windows UI, without touching the speech/translation backend.
+
+## What changed
+
+**New: `KikitanTranslator.WinForms`** — native WinForms host, no webview/WebView2
+(upstream's `KikitanTranslator.Photino` project is untouched and still builds).
+
+- `Program.cs` — entry point: Serilog `Logger.Initialize()`, `AppConfig.Load()`,
+  runs `MainForm`.
+- `AppEngine.cs` — pipeline orchestration, mirrors upstream `Photino/Manager`
+  (same recognizers/translators/capture, chatbox + OSC outputs, mic fallback
+  watcher, overlay process launch). Adds the translation feed as a plain
+  `IOutput` (`Custom`) on both mic and desktop pipelines, and pushes feed
+  frames to the overlay through the `kikitan-feed` pipe.
+- `TranslationFeed.cs` — thread-safe in-memory ring buffer (200 entries,
+  like VRCT: no persistence).
+- `FeedPipeWriter.cs` — JSON over a named MMF (`kikitan-pipe` is upstream's
+  legacy single-message pipe; `kikitan-feed` is new and carries entries +
+  overlay config).
+- `MainForm.cs` — settings UI (languages, recognizer/translator, mic,
+  VRChat/chatbox options, API keys, overlay settings) bound to the shared
+  `AppConfig` (`%APPDATA%/Kikitan Translator/config.json`, same file as
+  upstream), plus a live feed list.
+- `Languages.cs` — generated from upstream
+  `KikitanTranslator.Photino/UserInterface/src/util/constants.ts`.
+- `OscWatcher.cs` — copied from upstream Photino (mute detection), namespace
+  adjusted.
+
+**`KikitanTranslator.Base`** — one additive edit, marked `// FORK`:
+
+- `Utility/AppConfig.cs`: overlay/feed settings
+  (`overlay_max_entries`, `overlay_font_size`, `overlay_opacity`,
+  `overlay_anchor`, `overlay_width_cm`, `overlay_show_timestamps`,
+  `desktop_overlay_enabled`). Unknown to upstream builds, which ignore extra
+  JSON members.
+
+**`KikitanTranslator.Overlay`** — additive + small marked edits:
+
+- `FeedPipe.cs` (new) — JSON DTOs + tolerant `FeedPipeReader`
+  (returns null when the pipe is absent).
+- `OverlayServer.cs` — `StartFeedReader` poll loop; `SendFeed` routes rendered
+  feed frames to the desktop form / VR overlay; `DrawFeedOnCanvas` renders the
+  multi-line feed with SkiaSharp. Font size is fixed from config; **the box
+  grows with content** (up to a cap, oldest lines trimmed) instead of shrinking
+  text. Desktop entries render light-blue, mic entries white, timestamps gray.
+- `OpenVROverlay.cs` — anchor presets (HMD / left hand / right hand, with HMD
+  fallback when a controller isn't tracked), persistent feed display (no
+  auto-hide), per-tick transform updates for hand tracking, width/opacity from
+  config. Legacy timed single-message path preserved.
+- `Form1.cs` — `SetFeedImage` (persistent) / `ClearImage`; feed drawn larger
+  than legacy messages.
+- `Program.cs` — watchdog also accepts the WinForms host process; VR overlay
+  loop moved to a background thread so the desktop form runs alongside it.
+
+`sln` — WinForms project added. The WinForms build also builds + stages
+`KikitanTranslator.Overlay.exe` next to its own exe.
+
+## Upstream sync strategy
+
+- Every fork change is marked `// FORK (feed-overlay):` — grep for it.
+- Rule: **additive only** in shared projects (`Base`, `Overlay`). New files or
+  new blocks; no signature changes, no restructures. The only modified shared
+  file with logic is `OverlayServer.cs`/`OpenVROverlay.cs`/`Form1.cs`
+  (overlay), each change fenced by `// FORK` comments.
+- To pull upstream: `git fetch upstream && git merge upstream/main`
+  (resolve; the `// FORK` blocks are small and localized). The Photino web UI
+  is untouched, so its churn never conflicts with the WinForms host.
+
+## Build & run (Windows)
+
+```
+dotnet build KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -c Release
+```
+
+Requires the **.NET 9 Desktop Runtime** (framework-dependent build, no
+WebView2 needed). Run `KikitanTranslator.WinForms.exe`; it launches the overlay
+automatically. The overlay's desktop window is click-through + topmost; the VR
+overlay appears when SteamVR (`vrserver`) is running.
+
+## Deliberately not included
+
+- No web UI, no Velopack auto-update, no updater signing in the WinForms host.
+- UI text is English-only (upstream localizations live in the web UI).
+- Feed is in-memory only, like VRCT — nothing is written to disk.

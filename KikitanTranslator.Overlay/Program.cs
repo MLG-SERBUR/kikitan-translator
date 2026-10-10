@@ -34,7 +34,9 @@ static class Program
         Task.Run(() =>
         {
             while (true)
-                if (Process.GetProcessesByName("KikitanTranslator.Photino").Length == 0)
+                // FORK (feed-overlay): also stay alive under the WinForms host.
+                if (Process.GetProcessesByName("KikitanTranslator.Photino").Length == 0
+                    && Process.GetProcessesByName("KikitanTranslator.WinForms").Length == 0)
                 {
                     Console.WriteLine("Kikitan is not running!");
                     
