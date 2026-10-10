@@ -442,6 +442,105 @@ public class ConfigObject : INotifyPropertyChanged
             }
         }
     }
+
+    // Seconds the overlay stays visible after the last update; 0 = always show.
+    [JsonProperty("overlay_display_duration_sec")] private int _overlayDisplayDurationSec = 0;
+
+    [JsonIgnore]
+    public int OverlayDisplayDurationSec
+    {
+        get => _overlayDisplayDurationSec;
+        set
+        {
+            if (_overlayDisplayDurationSec != value)
+            {
+                _overlayDisplayDurationSec = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // VR overlay fade-out length in seconds once the display duration elapses.
+    [JsonProperty("overlay_fadeout_duration_sec")] private int _overlayFadeoutDurationSec = 2;
+
+    [JsonIgnore]
+    public int OverlayFadeoutDurationSec
+    {
+        get => _overlayFadeoutDurationSec;
+        set
+        {
+            if (_overlayFadeoutDurationSec != value)
+            {
+                _overlayFadeoutDurationSec = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    // Position offset in meters, applied on top of the anchor preset.
+    [JsonProperty("overlay_pos_x")] private double _overlayPosX = 0;
+
+    [JsonIgnore]
+    public double OverlayPosX
+    {
+        get => _overlayPosX;
+        set
+        {
+            if (_overlayPosX != value)
+            {
+                _overlayPosX = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_pos_y")] private double _overlayPosY = 0;
+
+    [JsonIgnore]
+    public double OverlayPosY
+    {
+        get => _overlayPosY;
+        set
+        {
+            if (_overlayPosY != value)
+            {
+                _overlayPosY = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_pos_z")] private double _overlayPosZ = 0;
+
+    [JsonIgnore]
+    public double OverlayPosZ
+    {
+        get => _overlayPosZ;
+        set
+        {
+            if (_overlayPosZ != value)
+            {
+                _overlayPosZ = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    [JsonProperty("overlay_show_original")] private bool _overlayShowOriginal = true;
+
+    [JsonIgnore]
+    public bool OverlayShowOriginal
+    {
+        get => _overlayShowOriginal;
+        set
+        {
+            if (_overlayShowOriginal != value)
+            {
+                _overlayShowOriginal = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     // END FORK
 
     protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

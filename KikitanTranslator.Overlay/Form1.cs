@@ -101,13 +101,29 @@ public partial class Form1 : Form
     }
 
     // FORK (feed-overlay): persistent feed frame (desktop overlay).
-    public void SetFeedImage(Image newImg)
+    // displayDurationSec > 0 hides the frame that long after it is shown.
+    public void SetFeedImage(Image newImg, int displayDurationSec = 0)
     {
         _feedMode = true;
         var old = Interlocked.Exchange(ref img, newImg);
         old?.Dispose();
 
         Invoke(RebuildBackBuffer);
+
+        if (displayDurationSec > 0)
+        {
+            var captured = newImg;
+            Task.Run(() =>
+            {
+                Thread.Sleep(displayDurationSec * 1000);
+                try
+                {
+                    if (_feedMode && ReferenceEquals(this.img, captured) && !IsDisposed)
+                        ClearImage();
+                }
+                catch (ObjectDisposedException) { }
+            });
+        }
     }
 
     // FORK (feed-overlay)

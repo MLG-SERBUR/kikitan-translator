@@ -35,6 +35,8 @@ and a native Windows UI, without touching the speech/translation backend.
 - `Utility/AppConfig.cs`: overlay/feed settings
   (`overlay_max_entries`, `overlay_font_size`, `overlay_opacity`,
   `overlay_anchor`, `overlay_width_cm`, `overlay_show_timestamps`,
+  `overlay_show_original`, `overlay_display_duration_sec`,
+  `overlay_fadeout_duration_sec`, `overlay_pos_x/y/z`,
   `desktop_overlay_enabled`). Unknown to upstream builds, which ignore extra
   JSON members.
 
@@ -42,17 +44,20 @@ and a native Windows UI, without touching the speech/translation backend.
 
 - `FeedPipe.cs` (new) — JSON DTOs + tolerant `FeedPipeReader`
   (returns null when the pipe is absent).
+- `FeedRenderer.cs` (new) — SkiaSharp multi-line feed renderer, extracted
+  from `OverlayServer` so it can be tested in isolation (`tests/FeedTests`).
+  Font size is fixed from config; **the box grows with content** (up to a cap,
+  oldest lines trimmed) instead of shrinking text. Desktop entries render
+  light-blue, mic entries white, timestamps gray.
 - `OverlayServer.cs` — `StartFeedReader` poll loop; `SendFeed` routes rendered
-  feed frames to the desktop form / VR overlay; `DrawFeedOnCanvas` renders the
-  multi-line feed with SkiaSharp. Font size is fixed from config; **the box
-  grows with content** (up to a cap, oldest lines trimmed) instead of shrinking
-  text. Desktop entries render light-blue, mic entries white, timestamps gray.
+  feed frames to the desktop form / VR overlay.
 - `OpenVROverlay.cs` — anchor presets (HMD / left hand / right hand, with HMD
-  fallback when a controller isn't tracked), persistent feed display (no
-  auto-hide), per-tick transform updates for hand tracking, width/opacity from
-  config. Legacy timed single-message path preserved.
-- `Form1.cs` — `SetFeedImage` (persistent) / `ClearImage`; feed drawn larger
-  than legacy messages.
+  fallback when a controller isn't tracked), VRCT-like position offsets,
+  display duration + fadeout, persistent feed display, per-tick transform
+  updates for hand tracking, width/opacity from config. Legacy timed
+  single-message path preserved.
+- `Form1.cs` — `SetFeedImage` (persistent, optional display duration) /
+  `ClearImage`; feed drawn larger than legacy messages.
 - `Program.cs` — watchdog also accepts the WinForms host process; VR overlay
   loop moved to a background thread so the desktop form runs alongside it.
 
@@ -70,19 +75,23 @@ and a native Windows UI, without touching the speech/translation backend.
   (resolve; the `// FORK` blocks are small and localized). The Photino web UI
   is untouched, so its churn never conflicts with the WinForms host.
 
-## Build & run (Windows)
+## Installer
 
-```
-dotnet build KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -c Release
-```
+Velopack, like upstream. The app is versioned `2.1.0` (fork line).
 
-Requires the **.NET 9 Desktop Runtime** (framework-dependent build, no
-WebView2 needed). Run `KikitanTranslator.WinForms.exe`; it launches the overlay
-automatically. The overlay's desktop window is click-through + topmost; the VR
-overlay appears when SteamVR (`vrserver`) is running.
+- `VelopackApp.Build().Run()` in `Program.cs`; update checks against this
+  fork's GitHub releases (download in background, apply on next launch —
+  never restarts mid-session).
+- `dotnet msbuild KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -t:PackInstaller -p:Configuration=Release`
+  publishes self-contained win-x64 (no .NET runtime prerequisite) and runs
+  `vpk pack`. Output: `./Releases` (`Setup.exe`, nupkg, `RELEASES`).
+- vpk's Windows packer only runs on Windows, so the installer is built by
+  `.github/workflows/winforms-installer.yml` on `windows-latest`
+  (manual dispatch; uploads the installer as an artifact). The same workflow
+  runs `tests/FeedTests` on Linux.
 
-## Deliberately not included
+## Tests
 
-- No web UI, no Velopack auto-update, no updater signing in the WinForms host.
-- UI text is English-only (upstream localizations live in the web UI).
-- Feed is in-memory only, like VRCT — nothing is written to disk.
+`tests/FeedTests` — Linux-runnable: feed pipe round-trip (skipped on Linux,
+named MMFs are Windows-only) and `FeedRenderer` scenarios saved as PNGs for
+visual inspection. The WinForms UI and OpenVR overlay need real Windows.

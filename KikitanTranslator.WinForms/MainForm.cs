@@ -98,11 +98,17 @@ public sealed class MainForm : Form
         {
             c.Controls.Add(Check("Desktop overlay", v => _cfg.DesktopOverlayEnabled = v, () => _cfg.DesktopOverlayEnabled));
             c.Controls.Add(Check("Show timestamps", v => _cfg.OverlayShowTimestamps = v, () => _cfg.OverlayShowTimestamps));
+            c.Controls.Add(Check("Show original text", v => _cfg.OverlayShowOriginal = v, () => _cfg.OverlayShowOriginal));
             c.Controls.Add(Row("Anchor:", AnchorCombo()));
             c.Controls.Add(Row("Max entries:", Num(1, 12, v => _cfg.OverlayMaxEntries = v, () => _cfg.OverlayMaxEntries)));
             c.Controls.Add(Row("Font size:", Num(24, 160, v => _cfg.OverlayFontSize = v, () => _cfg.OverlayFontSize)));
             c.Controls.Add(Row("Width (cm):", Num(40, 200, v => _cfg.OverlayWidthCm = v, () => _cfg.OverlayWidthCm)));
             c.Controls.Add(Row("Opacity %:", OpacityRow()));
+            c.Controls.Add(Row("Display sec (0=always):", Num(0, 3600, v => _cfg.OverlayDisplayDurationSec = v, () => _cfg.OverlayDisplayDurationSec)));
+            c.Controls.Add(Row("Fadeout sec:", Num(0, 30, v => _cfg.OverlayFadeoutDurationSec = v, () => _cfg.OverlayFadeoutDurationSec)));
+            c.Controls.Add(Row("Pos X (m):", DblNum(-2, 2, v => _cfg.OverlayPosX = v, () => _cfg.OverlayPosX)));
+            c.Controls.Add(Row("Pos Y (m):", DblNum(-2, 2, v => _cfg.OverlayPosY = v, () => _cfg.OverlayPosY)));
+            c.Controls.Add(Row("Pos Z (m):", DblNum(-2, 2, v => _cfg.OverlayPosZ = v, () => _cfg.OverlayPosZ)));
         }));
 
         _feedView = new ListView
@@ -216,6 +222,17 @@ public sealed class MainForm : Form
         return n;
     }
 
+    private NumericUpDown DblNum(double min, double max, Action<double> set, Func<double> get)
+    {
+        var n = new NumericUpDown
+        {
+            Minimum = (decimal)min, Maximum = (decimal)max,
+            DecimalPlaces = 2, Increment = 0.05M, Tag = get,
+        };
+        n.ValueChanged += (_, _) => { if (!_loading) set((double)n.Value); };
+        return n;
+    }
+
     private static TextBox KeyBox(Action<string> set, Func<string> get)
     {
         var t = new TextBox { PasswordChar = '•', Tag = get, Width = 170 };
@@ -270,6 +287,8 @@ public sealed class MainForm : Form
                     SetCheckedSilently(chk, get()); break;
                 case NumericUpDown n when n.Tag is Func<int> get:
                     n.Value = Math.Clamp(get(), n.Minimum, n.Maximum); break;
+                case NumericUpDown n when n.Tag is Func<double> getD:
+                    n.Value = (decimal)Math.Clamp(getD(), (double)n.Minimum, (double)n.Maximum); break;
                 case TextBox t when t.Tag is Func<string> get:
                     t.Text = get(); break;
                 case TrackBar tr when tr.Tag is "opacity":

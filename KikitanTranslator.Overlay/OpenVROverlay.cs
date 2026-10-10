@@ -24,6 +24,10 @@ public class OpenVROverlay : Application
     private FeedPipeConfig? _pendingFeedConfig;
     private DateTime _legacyHideAt = DateTime.MinValue;
     private bool _feedActive;
+    // FORK (feed-overlay): VRCT-like display duration + fadeout.
+    private FeedPipeConfig? _feedConfig;
+    private DateTime _feedHideAt = DateTime.MaxValue;
+    private float _baseAlpha = 0.85f;
 
     public OpenVROverlay() : base(ApplicationType.Overlay)
     {
@@ -83,6 +87,14 @@ public class OpenVROverlay : Application
         if (device == OpenVR.k_unTrackedDeviceIndex_Hmd)
             x = system.GetEyeToHeadTransform(EVREye.Eye_Left).m3;
 
+        // FORK (feed-overlay): VRCT-like position offset, relative to the anchor.
+        if (_feedConfig != null)
+        {
+            x += (float)_feedConfig.PosX;
+            y += (float)_feedConfig.PosY;
+            z += (float)_feedConfig.PosZ;
+        }
+
         HmdMatrix34_t overlayTransform = new HmdMatrix34_t
         {
             m0 = 1, m1 = 0, m2 = 0, m3 = x,
@@ -137,9 +149,15 @@ public class OpenVROverlay : Application
                     {
                         _anchor = Math.Clamp(feedConfig.Anchor, 0, 2);
                         overlay.WidthInMeters = Math.Clamp(feedConfig.WidthCm / 100f, 0.2f, 3f);
-                        overlay.Alpha = Math.Clamp(feedConfig.Opacity / 100f, 0.1f, 1f);
+                        _baseAlpha = Math.Clamp(feedConfig.Opacity / 100f, 0.1f, 1f);
+                        _feedConfig = feedConfig;
+                        // FORK (feed-overlay): VRCT-like display duration (0 = always).
+                        _feedHideAt = feedConfig.DisplayDurationSec > 0
+                            ? DateTime.Now.AddSeconds(feedConfig.DisplayDurationSec)
+                            : DateTime.MaxValue;
                     }
 
+                    overlay.Alpha = _baseAlpha;
                     overlay.Show();
                     overlay.SetTextureFromFile(fileName);
                     _feedActive = true;
@@ -177,6 +195,26 @@ public class OpenVROverlay : Application
                 Console.WriteLine("Hiding overlay...");
                 overlay.Hide();
                 _legacyHideAt = DateTime.MinValue;
+            }
+
+            // FORK (feed-overlay): VRCT-like fadeout once the display duration elapses.
+            if (_feedActive)
+            {
+                var now = DateTime.Now;
+                if (now >= _feedHideAt)
+                {
+                    overlay.Hide();
+                    _feedActive = false;
+                }
+                else if (_feedConfig is { FadeoutDurationSec: > 0 } && _feedHideAt != DateTime.MaxValue)
+                {
+                    var fadeStart = _feedHideAt.AddSeconds(-_feedConfig.FadeoutDurationSec);
+                    if (now >= fadeStart)
+                    {
+                        double t = (now - fadeStart).TotalSeconds / _feedConfig.FadeoutDurationSec;
+                        overlay.Alpha = _baseAlpha * (float)Math.Max(0, 1 - t);
+                    }
+                }
             }
 
             Thread.Sleep(16);

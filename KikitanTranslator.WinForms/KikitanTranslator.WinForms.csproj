@@ -8,6 +8,8 @@
         <UseWindowsForms>true</UseWindowsForms>
         <AssemblyName>KikitanTranslator.WinForms</AssemblyName>
         <RootNamespace>KikitanTranslator.WinForms</RootNamespace>
+        <Version>2.1.0</Version>
+        <ApplicationIcon>..\KikitanTranslator.Photino\Resources\wwwroot\kikitan_logo.ico</ApplicationIcon>
         <!-- FORK (feed-overlay): native WinForms host. No webview/WebView2. -->
     </PropertyGroup>
 
@@ -17,6 +19,7 @@
       <PackageReference Include="Serilog" Version="4.3.1" />
       <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
       <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+      <PackageReference Include="Velopack" Version="1.2.161" />
       <PackageReference Include="VRChat.OSCQuery" Version="0.0.7" />
     </ItemGroup>
 
@@ -38,6 +41,7 @@
     <Target Name="BuildAndStageOverlay" AfterTargets="Build">
         <MSBuild Projects="..\KikitanTranslator.Overlay\KikitanTranslator.Overlay.csproj"
                  Properties="Configuration=$(Configuration);EnableWindowsTargeting=true"
+                 RemoveProperties="RuntimeIdentifier"
                  Targets="Build" />
         <ItemGroup>
             <OverlayFiles Include="..\KikitanTranslator.Overlay\bin\$(Configuration)\$(TargetFramework)\**\*" />
@@ -45,6 +49,18 @@
         <Copy SourceFiles="@(OverlayFiles)"
               DestinationFiles="@(OverlayFiles->'$(OutputPath)%(RecursiveDir)%(Filename)%(Extension)')"
               SkipUnchangedFiles="true" />
+    </Target>
+
+    <!-- FORK (feed-overlay): explicit installer build. On Windows, run:
+         dotnet msbuild KikitanTranslator.WinForms.csproj -t:PackInstaller -p:Configuration=Release
+         (or let .github/workflows/winforms-installer.yml do it).
+         Requires the `vpk` dotnet tool (dotnet tool install -g vpk).
+         Produces Setup.exe + release assets under ./releases.
+         Self-contained publish: no .NET runtime prerequisite on the target PC. -->
+    <Target Name="PackInstaller">
+        <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/KikitanTranslator.WinForms.csproj&quot; -c Release -r win-x64 --self-contained true -o &quot;$(MSBuildProjectDirectory)/publish/app&quot;" />
+        <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Overlay/KikitanTranslator.Overlay.csproj&quot; -c Release -r win-x64 --self-contained true -o &quot;$(MSBuildProjectDirectory)/publish/app&quot;" />
+        <Exec Command="vpk pack -u KikitanTranslator.WinForms -v $(Version) -p &quot;$(MSBuildProjectDirectory)/publish/app&quot; -e KikitanTranslator.WinForms.exe -i &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Photino/Resources/wwwroot/kikitan_logo.ico&quot; --packTitle &quot;Kikitan Translator&quot; -o &quot;$(MSBuildProjectDirectory)/Releases&quot;" />
     </Target>
 
 </Project>

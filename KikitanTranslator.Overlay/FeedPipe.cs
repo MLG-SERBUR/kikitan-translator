@@ -25,6 +25,12 @@ public sealed class FeedPipeConfig
     [JsonProperty("widthCm")] public int WidthCm { get; set; } = 90;
     [JsonProperty("showTimestamps")] public bool ShowTimestamps { get; set; } = true;
     [JsonProperty("desktopOverlay")] public bool DesktopOverlay { get; set; } = true;
+    [JsonProperty("displayDurationSec")] public int DisplayDurationSec { get; set; }
+    [JsonProperty("fadeoutDurationSec")] public int FadeoutDurationSec { get; set; } = 2;
+    [JsonProperty("posX")] public double PosX { get; set; }
+    [JsonProperty("posY")] public double PosY { get; set; }
+    [JsonProperty("posZ")] public double PosZ { get; set; }
+    [JsonProperty("showOriginal")] public bool ShowOriginal { get; set; } = true;
 }
 
 public sealed class FeedPipeState
