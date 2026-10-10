@@ -47,6 +47,23 @@ catch (PlatformNotSupportedException)
     Console.WriteLine("SKIP pipe tests: named memory maps are Windows-only");
 }
 
+// ---------- 1b. JSON wire-format contract (no MMF needed) ----------
+{
+    var dto = new FeedPipeStateDto
+    {
+        Counter = 42,
+        Config = new FeedPipeConfigDto { MaxEntries = 6, FontSize = 64, Opacity = 85, Anchor = 1, WidthCm = 90, ShowTimestamps = true, DesktopOverlay = true, DisplayDurationSec = 10, FadeoutDurationSec = 3, PosX = 0.1, PosY = -0.2, PosZ = 0.3, ShowOriginal = false },
+        Entries = [new FeedPipeEntryDto { Timestamp = new DateTime(2026, 10, 10, 12, 0, 1), FromDesktop = true, Original = "orig", Translation = "trans" }],
+    };
+    // Mirror FeedPipeWriter.Write's serialization:
+    var json = Newtonsoft.Json.JsonConvert.SerializeObject(dto);
+    var back = Newtonsoft.Json.JsonConvert.DeserializeObject<FeedPipeState>(json);
+    Check(back != null && back.Counter == 42, "wire: counter survives");
+    Check(back?.Entries.Count == 1 && back.Entries[0].Original == "orig" && back.Entries[0].FromDesktop, "wire: entry survives");
+    Check(back?.Config.Anchor == 1 && back.Config.ShowOriginal == false && back.Config.DisplayDurationSec == 10
+        && Math.Abs(back.Config.PosY - (-0.2)) < 1e-9, "wire: config survives");
+}
+
 // ---------- 2. Renderer scenarios ----------
 Directory.CreateDirectory("test-output");
 
