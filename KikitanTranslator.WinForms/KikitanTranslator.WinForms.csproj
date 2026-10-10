@@ -39,6 +39,13 @@
     <!-- FORK (feed-overlay): build the overlay and stage it next to this exe,
          since AppEngine launches KikitanTranslator.Overlay.exe from the app dir. -->
     <Target Name="BuildAndStageOverlay" AfterTargets="Build">
+        <!-- Restore first: the overlay is built via a raw MSBuild task (not a
+             ProjectReference), so a plain `dotnet build` on a fresh checkout
+             would otherwise fail with NETSDK1004. -->
+        <MSBuild Projects="..\KikitanTranslator.Overlay\KikitanTranslator.Overlay.csproj"
+                 Properties="Configuration=$(Configuration);EnableWindowsTargeting=true"
+                 RemoveProperties="RuntimeIdentifier"
+                 Targets="Restore" />
         <MSBuild Projects="..\KikitanTranslator.Overlay\KikitanTranslator.Overlay.csproj"
                  Properties="Configuration=$(Configuration);EnableWindowsTargeting=true"
                  RemoveProperties="RuntimeIdentifier"
