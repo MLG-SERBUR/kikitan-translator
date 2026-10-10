@@ -1,0 +1,66 @@
+# FORK (feed-overlay): builds the native WinForms host + Velopack installer
+# on a real Windows runner (vpk's Windows packer only runs on Windows).
+
+name: Build WinForms Installer (fork)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  feed-tests:
+    name: Feed pipe + renderer tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: feed-overlay
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Run feed tests
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        run: dotnet run -c Release --project tests/FeedTests/FeedTests.csproj
+
+      - name: Upload render outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: feed-render-outputs
+          path: tests/FeedTests/test-output/
+
+  build-windows-installer:
+    name: Build Windows installer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: feed-overlay
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install velopack (vpk)
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        run: |
+          dotnet tool install -g vpk
+          echo "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Pack installer
+        env:
+          DOTNET_CLI_TELEMETRY_OPTOUT: 1
+        run: dotnet msbuild KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -t:PackInstaller -p:Configuration=Release
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: kikitan-winforms-setup
+          path: KikitanTranslator.WinForms/releases/
+          if-no-files-found: error
