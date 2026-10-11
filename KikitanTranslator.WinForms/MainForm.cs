@@ -24,7 +24,7 @@ public sealed class MainForm : Form
         _engine = engine;
         _cfg = AppConfig.ConfigObject;
 
-        Text = "Kikitan Translator (WinForms fork)";
+        Text = "KikiVRCTan"; // FORK (feed-overlay): product name
         Width = 980;
         Height = 720;
         MinimumSize = new Size(820, 560);
@@ -99,6 +99,7 @@ public sealed class MainForm : Form
             c.Controls.Add(Check("Desktop overlay", v => _cfg.DesktopOverlayEnabled = v, () => _cfg.DesktopOverlayEnabled));
             c.Controls.Add(Check("Show timestamps", v => _cfg.OverlayShowTimestamps = v, () => _cfg.OverlayShowTimestamps));
             c.Controls.Add(Check("Show original text", v => _cfg.OverlayShowOriginal = v, () => _cfg.OverlayShowOriginal));
+            c.Controls.Add(Check("Show own mic in feed", v => _cfg.FeedShowOwn = v, () => _cfg.FeedShowOwn));
             c.Controls.Add(Row("Anchor:", AnchorCombo()));
             c.Controls.Add(Row("Max entries:", Num(1, 12, v => _cfg.OverlayMaxEntries = v, () => _cfg.OverlayMaxEntries)));
             c.Controls.Add(Row("Font size:", Num(24, 160, v => _cfg.OverlayFontSize = v, () => _cfg.OverlayFontSize)));

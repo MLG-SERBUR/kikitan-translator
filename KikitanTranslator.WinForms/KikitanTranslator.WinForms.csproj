@@ -67,7 +67,11 @@
     <Target Name="PackInstaller">
         <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/KikitanTranslator.WinForms.csproj&quot; -c Release -r win-x64 --self-contained true -o &quot;$(MSBuildProjectDirectory)/publish/app&quot;" />
         <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Overlay/KikitanTranslator.Overlay.csproj&quot; -c Release -r win-x64 --self-contained true -o &quot;$(MSBuildProjectDirectory)/publish/app&quot;" />
-        <Exec Command="vpk pack -u KikitanTranslator.WinForms -v $(Version) -p &quot;$(MSBuildProjectDirectory)/publish/app&quot; -e KikitanTranslator.WinForms.exe -i &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Photino/Resources/wwwroot/kikitan_logo.ico&quot; --packTitle &quot;Kikitan Translator&quot; -o &quot;$(MSBuildProjectDirectory)/Releases&quot;" />
+        <Exec Command="vpk pack -u KikiVRCTan -v $(Version) -p &quot;$(MSBuildProjectDirectory)/publish/app&quot; -e KikitanTranslator.WinForms.exe -i &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Photino/Resources/wwwroot/kikitan_logo.ico&quot; --packTitle &quot;KikiVRCTan&quot; -o &quot;$(MSBuildProjectDirectory)/Releases&quot;" />
+        <ItemGroup>
+            <PortableZip Include="$(MSBuildProjectDirectory)/Releases/*-Portable.zip" />
+        </ItemGroup>
+        <Delete Files="@(PortableZip)" />
     </Target>
 
 </Project>

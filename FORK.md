@@ -17,7 +17,8 @@ and a native Windows UI, without touching the speech/translation backend.
   `IOutput` (`Custom`) on both mic and desktop pipelines, and pushes feed
   frames to the overlay through the `kikitan-feed` pipe.
 - `TranslationFeed.cs` — thread-safe in-memory ring buffer (200 entries,
-  like VRCT: no persistence).
+  like VRCT: no persistence). Incoming (desktop) speech only by default;
+  `feed_show_own` opts the user's own mic transcription back in.
 - `FeedPipeWriter.cs` — JSON over a named MMF (`kikitan-pipe` is upstream's
   legacy single-message pipe; `kikitan-feed` is new and carries entries +
   overlay config).
@@ -77,18 +78,28 @@ and a native Windows UI, without touching the speech/translation backend.
 
 ## Installer
 
-Velopack, like upstream. The app is versioned `2.1.0` (fork line).
+Velopack, like upstream. The app is versioned `2.1.0` (fork line) and branded
+**KikiVRCTan** (Velopack packId/title, Start menu entry, window title,
+`KikiVRCTan-win-Setup.exe`). Repo, assemblies, namespaces and pipe names keep
+the kikitan names.
 
 - `VelopackApp.Build().Run()` in `Program.cs`; update checks against this
   fork's GitHub releases (download in background, apply on next launch —
   never restarts mid-session).
 - `dotnet msbuild KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -t:PackInstaller -p:Configuration=Release`
   publishes self-contained win-x64 (no .NET runtime prerequisite) and runs
-  `vpk pack`. Output: `./Releases` (`Setup.exe`, nupkg, `RELEASES`).
+  `vpk pack`. Output: `./Releases` (`Setup.exe`, nupkg, `RELEASES`; the
+  portable zip is deleted — setup only).
+- Install location: `%LocalAppData%\KikiVRCTan` by default. To install into
+  the current directory instead: `KikiVRCTan-win-Setup.exe --installto "%CD%"`
+  (official Velopack override).
+- Config lives at `%APPDATA%\Kikitan Translator\config.json` regardless of
+  install location, so settings (and the old install's) carry over
+  automatically — nothing to copy.
 - vpk's Windows packer only runs on Windows, so the installer is built by
   `.github/workflows/winforms-installer.yml` on `windows-latest`
-  (manual dispatch; uploads the installer as an artifact). The same workflow
-  runs `tests/FeedTests` on Linux.
+  (manual dispatch; uploads just the Setup.exe as artifact `KikiVRCTan-setup`).
+  The same workflow runs `tests/FeedTests` on Linux.
 
 ## Tests
 

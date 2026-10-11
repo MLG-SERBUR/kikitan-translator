@@ -541,6 +541,24 @@ public class ConfigObject : INotifyPropertyChanged
             }
         }
     }
+
+    // FORK: include the user's own microphone transcription in the feed.
+    // Default false: feed shows incoming (desktop) speech only, like VRCT.
+    [JsonProperty("feed_show_own")] private bool _feedShowOwn = false;
+
+    [JsonIgnore]
+    public bool FeedShowOwn
+    {
+        get => _feedShowOwn;
+        set
+        {
+            if (_feedShowOwn != value)
+            {
+                _feedShowOwn = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     // END FORK
 
     protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

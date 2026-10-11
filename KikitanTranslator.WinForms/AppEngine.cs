@@ -231,7 +231,9 @@ public sealed class AppEngine : IDisposable
         var errorHandler = new WinErrorHandler(msg => StatusChanged?.Invoke(msg));
 
         _microphoneKikitan = new Kikitan(rMic, _translator, errorHandler, false);
-        _microphoneKikitan.AddOutput(new Custom((r, t, f) => { if (f) Feed.Add(false, r, t); }, false));
+        // FORK: feed is incoming-only by default (like VRCT); own mic only when enabled.
+        if (cfg.FeedShowOwn)
+            _microphoneKikitan.AddOutput(new Custom((r, t, f) => { if (f) Feed.Add(false, r, t); }, false));
 
         if (cfg.SendToChatbox)
         {
