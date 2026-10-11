@@ -575,8 +575,21 @@ public static class AppConfig
     public static event OnConfigUpdate? OnUpdate;
     private static string _currentConfigPath;
 
+    // FORK: when true, app data (config.json, logs) lives next to the executable
+    // instead of %APPDATA%. The WinForms host sets this; upstream hosts keep default.
+    public static bool UseExecutableDirectory { get; set; }
+
+    public static string GetLegacyAppFolder()
+    {
+        string basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        return Path.Combine(basePath, "Kikitan Translator");
+    }
+
     public static string GetAppFolder()
     {
+        if (UseExecutableDirectory)
+            return AppContext.BaseDirectory;
+
         string basePath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
         string appFolder = Path.Combine(basePath, "Kikitan Translator");
         Directory.CreateDirectory(appFolder);
@@ -584,7 +597,29 @@ public static class AppConfig
         return appFolder;
     }
 
-    public static void Load() => Load(Path.Join(GetAppFolder(), "config.json"));
+    public static void Load()
+    {
+        // FORK: first run next to the exe — migrate config from the legacy location.
+        if (UseExecutableDirectory)
+        {
+            var newPath = Path.Join(GetAppFolder(), "config.json");
+            var legacyPath = Path.Join(GetLegacyAppFolder(), "config.json");
+            if (!File.Exists(newPath) && File.Exists(legacyPath))
+            {
+                try
+                {
+                    File.Copy(legacyPath, newPath);
+                    Log.Information("[FORK] Migrated config from {Legacy}", legacyPath);
+                }
+                catch (Exception e)
+                {
+                    Log.Warning(e, "[FORK] Config migration failed");
+                }
+            }
+        }
+
+        Load(Path.Join(GetAppFolder(), "config.json"));
+    }
 
     public static void Load(string configPath)
     {

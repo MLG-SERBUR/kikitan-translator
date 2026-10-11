@@ -2,7 +2,6 @@
 
 using KikitanTranslator.Base;
 using KikitanTranslator.Utility;
-using Velopack;
 
 namespace KikitanTranslator.WinForms;
 
@@ -11,9 +10,12 @@ static class Program
     [STAThread]
     static void Main()
     {
-        VelopackApp.Build().Run();
-
         Console.OutputEncoding = System.Text.Encoding.UTF8;
+
+        // FORK: keep config.json and logs next to the executable, not %APPDATA%.
+        // Migrates an existing config from the legacy location on first run.
+        AppConfig.UseExecutableDirectory = true;
+
         Logger.Initialize();
         AppConfig.Load();
 

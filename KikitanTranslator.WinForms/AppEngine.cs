@@ -16,8 +16,6 @@ using Serilog;
 using SoundFlow.Backends.MiniAudio;
 using SoundFlow.Backends.MiniAudio.Enums;
 using SoundFlow.Structs;
-using Velopack;
-using Velopack.Sources;
 
 namespace KikitanTranslator.WinForms;
 
@@ -82,32 +80,6 @@ public sealed class AppEngine : IDisposable
 
         LaunchOverlay();
         WatchMicrophone();
-        CheckForUpdates();
-    }
-
-    // FORK (feed-overlay): Velopack update check against the fork's releases.
-    // Downloads in the background; the update applies on the next launch
-    // (VelopackApp hook in Program.cs). Never restarts mid-session.
-    private void CheckForUpdates()
-    {
-        Task.Run(async () =>
-        {
-            try
-            {
-                var mgr = new UpdateManager(new GithubSource(
-                    "https://github.com/MLG-SERBUR/kikitan-translator", null, true));
-                var update = await mgr.CheckForUpdatesAsync();
-                if (update == null) return;
-
-                Log.Information("[FORK] Update available: {V}; downloading", update.TargetFullRelease.Version);
-                await mgr.DownloadUpdatesAsync(update);
-                StatusChanged?.Invoke($"Update {update.TargetFullRelease.Version} downloaded — restart to install");
-            }
-            catch (Exception e)
-            {
-                Log.Debug(e, "[FORK] Update check failed");
-            }
-        });
     }
 
     private void LaunchOverlay()

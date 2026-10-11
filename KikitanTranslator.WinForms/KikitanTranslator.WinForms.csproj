@@ -19,7 +19,6 @@
       <PackageReference Include="Serilog" Version="4.3.1" />
       <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
       <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-      <PackageReference Include="Velopack" Version="1.2.161" />
       <PackageReference Include="VRChat.OSCQuery" Version="0.0.7" />
     </ItemGroup>
 
@@ -58,20 +57,7 @@
               SkipUnchangedFiles="true" />
     </Target>
 
-    <!-- FORK (feed-overlay): explicit installer build. On Windows, run:
-         dotnet msbuild KikitanTranslator.WinForms.csproj -t:PackInstaller -p:Configuration=Release
-         (or let .github/workflows/winforms-installer.yml do it).
-         Requires the `vpk` dotnet tool (dotnet tool install -g vpk).
-         Produces Setup.exe + release assets under ./releases.
-         Self-contained publish: no .NET runtime prerequisite on the target PC. -->
-    <Target Name="PackInstaller">
-        <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/KikitanTranslator.WinForms.csproj&quot; -c Release -r win-x64 --self-contained true -o &quot;$(MSBuildProjectDirectory)/publish/app&quot;" />
-        <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Overlay/KikitanTranslator.Overlay.csproj&quot; -c Release -r win-x64 --self-contained true -o &quot;$(MSBuildProjectDirectory)/publish/app&quot;" />
-        <Exec Command="vpk pack -u KikiVRCTan -v $(Version) -p &quot;$(MSBuildProjectDirectory)/publish/app&quot; -e KikitanTranslator.WinForms.exe -i &quot;$(MSBuildProjectDirectory)/../KikitanTranslator.Photino/Resources/wwwroot/kikitan_logo.ico&quot; --packTitle &quot;KikiVRCTan&quot; -o &quot;$(MSBuildProjectDirectory)/Releases&quot;" />
-        <ItemGroup>
-            <PortableZip Include="$(MSBuildProjectDirectory)/Releases/*-Portable.zip" />
-        </ItemGroup>
-        <Delete Files="@(PortableZip)" />
-    </Target>
+    <!-- FORK (feed-overlay): installer is built with Inno Setup, see
+         installer/kikivrctan.iss and .github/workflows/winforms-installer.yml. -->
 
 </Project>

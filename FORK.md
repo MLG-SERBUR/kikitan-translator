@@ -78,28 +78,27 @@ and a native Windows UI, without touching the speech/translation backend.
 
 ## Installer
 
-Velopack, like upstream. The app is versioned `2.1.0` (fork line) and branded
-**KikiVRCTan** (Velopack packId/title, Start menu entry, window title,
-`KikiVRCTan-win-Setup.exe`). Repo, assemblies, namespaces and pipe names keep
-the kikitan names.
+Inno Setup (`installer/kikivrctan.iss`), producing a single
+`KikiVRCTan-Setup.exe` — no zip to extract. Branded **KikiVRCTan** (Start menu
+entry, window title, setup name). Repo, assemblies, namespaces and pipe names
+keep the kikitan names.
 
-- `VelopackApp.Build().Run()` in `Program.cs`; update checks against this
-  fork's GitHub releases (download in background, apply on next launch —
-  never restarts mid-session).
-- `dotnet msbuild KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -t:PackInstaller -p:Configuration=Release`
-  publishes self-contained win-x64 (no .NET runtime prerequisite) and runs
-  `vpk pack`. Output: `./Releases` (`Setup.exe`, nupkg, `RELEASES`; the
-  portable zip is deleted — setup only).
-- Install location: `%LocalAppData%\KikiVRCTan` by default. To install into
-  the current directory instead: `KikiVRCTan-win-Setup.exe --installto "%CD%"`
-  (official Velopack override).
-- Config lives at `%APPDATA%\Kikitan Translator\config.json` regardless of
-  install location, so settings (and the old install's) carry over
-  automatically — nothing to copy.
-- vpk's Windows packer only runs on Windows, so the installer is built by
+- Install location: the folder the setup is run from, when that folder holds
+  nothing but the setup itself; otherwise `%LocalAppData%\KikiVRCTan`. The
+  user can change it on the directory page. Per-user, no elevation.
+- Everything lives in that one folder: app, `config.json`, `logs/`. No
+  `%APPDATA%` usage. On first run next to the exe, an existing config is
+  migrated from the legacy `%APPDATA%\Kikitan Translator\config.json`.
+- No auto-updater (Velopack was removed — its LocalAppData model fought the
+  above). To update: download the new setup and run it over the same folder.
+- Publish is self-contained win-x64 (no .NET runtime prerequisite).
+- Inno's compiler only runs on Windows, so the installer is built by
   `.github/workflows/winforms-installer.yml` on `windows-latest`
-  (manual dispatch; uploads just the Setup.exe as artifact `KikiVRCTan-setup`).
-  The same workflow runs `tests/FeedTests` on Linux.
+  (manual dispatch; uploads just `KikiVRCTan-Setup.exe` as artifact
+  `KikiVRCTan-setup`). The same workflow runs `tests/FeedTests` on Linux.
+  Local build: publish both projects to
+  `KikitanTranslator.WinForms/publish/app`, then
+  `iscc installer\kikivrctan.iss`.
 
 ## Tests
 
