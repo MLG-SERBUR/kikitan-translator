@@ -77,5 +77,4 @@ jobs:
               --title "KikiVRCTan (feed-overlay latest)" `
               --notes "Latest automated build of the feed-overlay branch. Download KikiVRCTan-portable.zip, extract anywhere, run KikitanTranslator.WinForms.exe."
           }
-          gh release delete-asset $tag KikiVRCTan-win-Setup.exe --yes 2>$null
           gh release upload $tag KikiVRCTan-portable.zip --clobber
