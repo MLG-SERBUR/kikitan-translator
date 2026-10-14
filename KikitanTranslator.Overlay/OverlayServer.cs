@@ -9,6 +9,21 @@ public class OverlayServer
     private OpenVROverlay _openvroverlay;
 
     private bool _desktop;
+    private bool _readersStarted;
+    private readonly object _readersLock = new();
+
+    // FORK: StartForm and StartOpenVR can both run (desktop + VR side by side);
+    // start the pipe readers only once.
+    private void EnsureReaders()
+    {
+        lock (_readersLock)
+        {
+            if (_readersStarted) return;
+            _readersStarted = true;
+            Task.Run(StartReader);
+            Task.Run(StartFeedReader);
+        }
+    }
 
     private async Task StartReader()
     {
@@ -47,8 +62,7 @@ public class OverlayServer
 
     public void StartForm(Form1 form)
     {
-        Task.Run(StartReader);
-        Task.Run(StartFeedReader);
+        EnsureReaders();
 
         _form = form;
         _desktop = true;
@@ -56,8 +70,7 @@ public class OverlayServer
 
     public void StartOpenVR(OpenVROverlay openVROverlay)
     {
-        Task.Run(StartReader);
-        Task.Run(StartFeedReader);
+        EnsureReaders();
 
         _openvroverlay = openVROverlay;
         // FORK (feed-overlay): don't block the main thread; the desktop form
@@ -76,9 +89,10 @@ public class OverlayServer
 
             _form.SetImage(image, time);
         }
-        else
+        // FORK: desktop and VR run side by side now; feed both, not either/or.
+        if (_openvroverlay != null)
         {
-            _openvroverlay.AddToQueue(ms, time);
+            _openvroverlay.AddToQueue(new MemoryStream(img), time);
         }
 
         Console.WriteLine("Image received!");
@@ -284,9 +298,9 @@ public class OverlayServer
     private void SendFeed(FeedPipeState state)
     {
         var png = FeedRenderer.DrawFeedOnCanvas(state);
-        if (_desktop)
+        // FORK: desktop and VR run side by side now; feed both, not either/or.
+        if (_desktop && _form != null)
         {
-            if (_form == null) return;
             if (state.Config.DesktopOverlay)
             {
                 using var ms = new MemoryStream(png);
@@ -298,9 +312,9 @@ public class OverlayServer
                 _form.ClearImage();
             }
         }
-        else
+        if (_openvroverlay != null)
         {
-            _openvroverlay?.ShowFeed(new MemoryStream(png), state.Config);
+            _openvroverlay.ShowFeed(new MemoryStream(png), state.Config);
         }
 
         Console.WriteLine("Feed frame received!");
