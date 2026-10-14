@@ -13,7 +13,10 @@ public sealed class MainForm : Form
     private Button _startStop = null!;
     private Label _status = null!;
     private Label _muted = null!;
-    private ListView _feedView = null!;
+    private TextBox _feedBox = null!;
+    private int _feedLineCount;
+    private Button _updateButton = null!;
+    private Updater _updater = null!;
     private ComboBox _micCombo = null!;
     private bool _loading = true;
 
@@ -52,11 +55,14 @@ public sealed class MainForm : Form
         _status = new Label { Text = "Stopped", AutoSize = true, Padding = new Padding(8, 6, 0, 0) };
         _muted = new Label { Text = "", AutoSize = true, Padding = new Padding(8, 6, 0, 0), ForeColor = Color.DarkRed };
         var clearFeed = new Button { Text = "Clear feed", Width = 90, Height = 28 };
-        clearFeed.Click += (_, _) => { _engine.Feed.Clear(); _feedView.Items.Clear(); };
+        clearFeed.Click += (_, _) => { _engine.Feed.Clear(); _feedBox.Clear(); _feedLineCount = 0; };
         top.Controls.AddRange([_startStop, _status, _muted, clearFeed]);
+        _updateButton = new Button { Text = "Restart to update", Width = 130, Height = 28, Visible = false };
+        _updateButton.Click += (_, _) => _updater.ApplyAndRestart();
+        top.Controls.Add(_updateButton);
         Controls.Add(top);
 
-        var split = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 330 };
+        var split = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 290 };
         Controls.Add(split);
 
         var settings = new FlowLayoutPanel
@@ -112,21 +118,24 @@ public sealed class MainForm : Form
             c.Controls.Add(Row("Pos Z (m):", DblNum(-2, 2, v => _cfg.OverlayPosZ = v, () => _cfg.OverlayPosZ)));
         }));
 
-        _feedView = new ListView
+        _feedBox = new TextBox
         {
-            Dock = DockStyle.Fill, View = View.Details, FullRowSelect = true,
-            GridLines = false, HeaderStyle = ColumnHeaderStyle.Nonclickable,
+            Dock = DockStyle.Fill, Multiline = true, ReadOnly = true,
+            ScrollBars = ScrollBars.Vertical, WordWrap = false,
+            Font = new Font("Consolas", 10),
+            BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.Gainsboro,
         };
-        _feedView.Columns.Add("Time", 70);
-        _feedView.Columns.Add("From", 70);
-        _feedView.Columns.Add("Original", 280);
-        _feedView.Columns.Add("Translation", 280);
-        split.Panel2.Controls.Add(_feedView);
+        split.Panel2.Controls.Add(_feedBox);
+
+        _updater = new Updater();
+        _updater.StatusChanged += msg => BeginInvoke(() => _status.Text = msg);
+        _updater.UpdateReady += () => BeginInvoke(() => _updateButton.Visible = true);
+        Task.Run(() => _updater.CheckAsync());
     }
 
     private static GroupBox Group(string title, Action<FlowLayoutPanel> build)
     {
-        var g = new GroupBox { Text = title, Width = 300, Padding = new Padding(6), AutoSize = true };
+        var g = new GroupBox { Text = title, Width = 270, Padding = new Padding(6), AutoSize = true };
         var p = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -341,13 +350,24 @@ public sealed class MainForm : Form
         _engine.MuteChanged += muted => BeginInvoke(() => _muted.Text = muted ? "MUTED" : "");
         _engine.Feed.EntryAdded += entry => BeginInvoke(() =>
         {
-            var item = new ListViewItem(entry.Timestamp.ToString("HH:mm:ss"));
-            item.SubItems.Add(entry.FromDesktop ? "Desktop" : "Mic");
-            item.SubItems.Add(entry.Original);
-            item.SubItems.Add(entry.Translation);
-            _feedView.Items.Add(item);
-            while (_feedView.Items.Count > 220) _feedView.Items.RemoveAt(0);
-            _feedView.EnsureVisible(_feedView.Items.Count - 1);
+            _feedBox.AppendText(entry.DisplayText(true) + Environment.NewLine);
+            if (++_feedLineCount > 240)
+            {
+                // Drop the oldest 40 lines; keep the view pinned to the end.
+                var text = _feedBox.Text;
+                int cut = 0;
+                for (int i = 0; i < 40 && cut < text.Length; i++)
+                {
+                    int nl = text.IndexOf('\n', cut);
+                    if (nl < 0) { cut = text.Length; break; }
+                    cut = nl + 1;
+                }
+                _feedBox.Select(0, cut);
+                _feedBox.SelectedText = "";
+                _feedBox.SelectionStart = _feedBox.TextLength;
+                _feedBox.ScrollToCaret();
+                _feedLineCount -= 40;
+            }
         });
     }
 

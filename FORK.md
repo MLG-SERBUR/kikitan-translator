@@ -79,14 +79,21 @@ and a native Windows UI, without touching the speech/translation backend.
 ## Distribution
 
 No installer — KikiVRCTan is portable. The workflow publishes a
-self-contained win-x64 build as `KikiVRCTan-portable.zip`, attached to the
-`feed-overlay-latest` prerelease (and as a workflow artifact).
+self-contained, single-file win-x64 build (`PublishSingleFile`; the zip holds
+just the two exes, `silero_vad.onnx`, and `version.txt`) as
+`KikiVRCTan-portable.zip`, attached to the `feed-overlay-latest` prerelease
+(and as a workflow artifact).
 
 Download, extract anywhere, run `KikitanTranslator.WinForms.exe`. Everything
 (app, `config.json`, `logs/`) stays in that one folder: no %APPDATA%, no
 registry, no install step, no admin rights. To update, extract the new zip
 over the same folder — the zip contains no `config.json`, so your settings
 survive.
+
+A simple self-updater (`Updater.cs`) checks `version.txt` on the release at
+startup; on mismatch it downloads the zip in the background and shows a
+"Restart to update" button, which applies the update via a batch script
+(preserving `config.json`) and restarts the app.
 
 ## Tests
 
