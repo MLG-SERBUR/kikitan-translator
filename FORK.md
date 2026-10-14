@@ -76,29 +76,17 @@ and a native Windows UI, without touching the speech/translation backend.
   (resolve; the `// FORK` blocks are small and localized). The Photino web UI
   is untouched, so its churn never conflicts with the WinForms host.
 
-## Installer
+## Distribution
 
-Inno Setup (`installer/kikivrctan.iss`), producing a single
-`KikiVRCTan-Setup.exe` — no zip to extract. Branded **KikiVRCTan** (Start menu
-entry, window title, setup name). Repo, assemblies, namespaces and pipe names
-keep the kikitan names.
+No installer — KikiVRCTan is portable. The workflow publishes a
+self-contained win-x64 build as `KikiVRCTan-portable.zip`, attached to the
+`feed-overlay-latest` prerelease (and as a workflow artifact).
 
-- Install location: the folder the setup is run from, when that folder holds
-  nothing but the setup itself; otherwise `%LocalAppData%\KikiVRCTan`. The
-  user can change it on the directory page. Per-user, no elevation.
-- Everything lives in that one folder: app, `config.json`, `logs/`. No
-  `%APPDATA%` usage. On first run next to the exe, an existing config is
-  migrated from the legacy `%APPDATA%\Kikitan Translator\config.json`.
-- No auto-updater (Velopack was removed — its LocalAppData model fought the
-  above). To update: download the new setup and run it over the same folder.
-- Publish is self-contained win-x64 (no .NET runtime prerequisite).
-- Inno's compiler only runs on Windows, so the installer is built by
-  `.github/workflows/winforms-installer.yml` on `windows-latest`
-  (manual dispatch; uploads just `KikiVRCTan-Setup.exe` as artifact
-  `KikiVRCTan-setup`). The same workflow runs `tests/FeedTests` on Linux.
-  Local build: publish both projects to
-  `KikitanTranslator.WinForms/publish/app`, then
-  `iscc installer\kikivrctan.iss`.
+Download, extract anywhere, run `KikitanTranslator.WinForms.exe`. Everything
+(app, `config.json`, `logs/`) stays in that one folder: no %APPDATA%, no
+registry, no install step, no admin rights. To update, extract the new zip
+over the same folder — the zip contains no `config.json`, so your settings
+survive.
 
 ## Tests
 

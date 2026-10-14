@@ -1,7 +1,7 @@
-# FORK (feed-overlay): builds the native WinForms host + Inno Setup installer
-# on a real Windows runner (vpk's Windows packer only runs on Windows).
+# FORK (feed-overlay): builds the native WinForms host as a portable zip
+# on a real Windows runner.
 
-name: Build WinForms Installer (fork)
+name: Build KikiVRCTan portable (fork)
 
 on:
   workflow_dispatch:
@@ -35,8 +35,8 @@ jobs:
           name: feed-render-outputs
           path: tests/FeedTests/test-output/
 
-  build-windows-installer:
-    name: Build Windows installer
+  build-portable:
+    name: Build portable zip
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -56,20 +56,14 @@ jobs:
           dotnet publish KikitanTranslator.WinForms/KikitanTranslator.WinForms.csproj -c Release -r win-x64 --self-contained true -o KikitanTranslator.WinForms/publish/app
           dotnet publish KikitanTranslator.Overlay/KikitanTranslator.Overlay.csproj -c Release -r win-x64 --self-contained true -o KikitanTranslator.WinForms/publish/app
 
-      - name: Install Inno Setup
-        run: choco install innosetup -y
+      - name: Create portable zip
+        run: Compress-Archive -Path KikitanTranslator.WinForms\publish\app\* -DestinationPath KikiVRCTan-portable.zip -Force
 
-      - name: Build installer
-        run: |
-          $publishDir = "$PWD\KikitanTranslator.WinForms\publish\app"
-          $iconFile = "$PWD\KikitanTranslator.Photino\Resources\wwwroot\kikitan_logo.ico"
-          iscc "/DPublishDir=$publishDir" "/DIconFile=$iconFile" installer\kikivrctan.iss
-
-      - name: Upload installer
+      - name: Upload portable zip
         uses: actions/upload-artifact@v4
         with:
-          name: KikiVRCTan-setup
-          path: installer/Output/KikiVRCTan-Setup.exe
+          name: KikiVRCTan-portable
+          path: KikiVRCTan-portable.zip
           if-no-files-found: error
 
       - name: Publish to GitHub Release
@@ -81,6 +75,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             gh release create $tag --prerelease `
               --title "KikiVRCTan (feed-overlay latest)" `
-              --notes "Latest automated build of the feed-overlay branch. Download KikiVRCTan-Setup.exe directly - no zip."
+              --notes "Latest automated build of the feed-overlay branch. Download KikiVRCTan-portable.zip, extract anywhere, run KikitanTranslator.WinForms.exe."
           }
-          gh release upload $tag installer/Output/KikiVRCTan-Setup.exe --clobber
+          gh release delete-asset $tag KikiVRCTan-win-Setup.exe --yes 2>$null
+          gh release upload $tag KikiVRCTan-portable.zip --clobber

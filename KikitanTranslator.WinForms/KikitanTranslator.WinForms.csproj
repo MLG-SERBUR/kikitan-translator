@@ -57,7 +57,7 @@
               SkipUnchangedFiles="true" />
     </Target>
 
-    <!-- FORK (feed-overlay): installer is built with Inno Setup, see
-         installer/kikivrctan.iss and .github/workflows/winforms-installer.yml. -->
+    <!-- FORK (feed-overlay): distribution is a portable zip built by
+         .github/workflows/winforms-installer.yml. No installer. -->
 
 </Project>
