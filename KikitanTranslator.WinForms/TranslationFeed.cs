@@ -12,8 +12,9 @@ public sealed class FeedEntry
 
     public string DisplayText(bool showTimestamps, bool showTranscription)
     {
+        // FORK: transcription and translation on separate lines.
         var body = showTranscription && Translation.Length > 0
-            ? $"{Bidi(Original)} → {Bidi(Translation)}"
+            ? $"{Bidi(Original)}\n{Bidi(Translation)}"
             : Bidi(Translation.Length > 0 ? Translation : Original);
         return showTimestamps ? $"[{Timestamp:HH:mm:ss}] {body}" : body;
     }

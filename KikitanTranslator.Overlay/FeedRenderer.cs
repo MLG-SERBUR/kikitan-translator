@@ -150,17 +150,27 @@ internal static class FeedRenderer
         foreach (var e in entries)
         {
             var ts = state.Config.ShowTimestamps ? $"[{e.Timestamp:HH:mm:ss}] " : "";
-            var body = state.Config.ShowOriginal || e.Translation.Length == 0
-                ? (e.Translation.Length > 0 ? $"{e.Original} → {e.Translation}" : e.Original)
-                : e.Translation;
-            if (body.Trim().Length == 0) continue;
             var color = e.FromDesktop ? new SKColor(0x9E, 0xCB, 0xFF) : SKColors.White;
+            // FORK: transcription and translation on separate lines.
+            bool showOrig = state.Config.ShowOriginal || e.Translation.Length == 0;
 
             bool firstLine = true;
-            foreach (var (lts, lbody) in WrapFeedLine(ts, body, maxTextWidth, fontSize, paint))
+            if (showOrig && e.Original.Trim().Length > 0)
             {
-                lines.Add(new FeedLine { Ts = lts, Body = lbody, Color = color, FirstOfEntry = firstLine });
-                firstLine = false;
+                foreach (var (lts, lbody) in WrapFeedLine(ts, e.Original, maxTextWidth, fontSize, paint))
+                {
+                    lines.Add(new FeedLine { Ts = lts, Body = lbody, Color = color, FirstOfEntry = firstLine });
+                    firstLine = false;
+                }
+            }
+            if (e.Translation.Trim().Length > 0)
+            {
+                var tts = firstLine ? ts : "";
+                foreach (var (lts, lbody) in WrapFeedLine(tts, e.Translation, maxTextWidth, fontSize, paint))
+                {
+                    lines.Add(new FeedLine { Ts = lts, Body = lbody, Color = color, FirstOfEntry = firstLine });
+                    firstLine = false;
+                }
             }
         }
 
