@@ -13,5 +13,6 @@
         <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
         <PackageReference Include="OVRSharp" Version="1.2.0" />
         <PackageReference Include="SkiaSharp" Version="3.119.2" />
+        <PackageReference Include="SkiaSharp.HarfBuzz" Version="3.119.2" />
     </ItemGroup>
 </Project>

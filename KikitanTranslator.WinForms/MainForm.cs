@@ -73,6 +73,7 @@ public sealed class MainForm : Form
             c.Controls.Add(_status);
             c.Controls.Add(_muted);
             c.Controls.Add(_updateButton);
+            c.Controls.Add(Row("Log size:", Num(8, 24, v => { _cfg.LogFontSize = v; ApplyLogFont(); }, () => _cfg.LogFontSize)));
         }));
 
         settings.Controls.Add(Group("Speech", c =>
@@ -83,7 +84,7 @@ public sealed class MainForm : Form
             c.Controls.Add(Row("Translator:", TranslatorCombo()));
             c.Controls.Add(MicLabeledRow());
             c.Controls.Add(Check("Show transcription", v => _cfg.FeedShowTranscription = v, () => _cfg.FeedShowTranscription));
-            c.Controls.Add(Check("Translate desktop audio", v => _cfg.DesktopTranslation = v, () => _cfg.DesktopTranslation));
+            c.Controls.Add(Check("Translate mic audio", v => _cfg.DesktopTranslation = v, () => _cfg.DesktopTranslation));
         }));
 
         settings.Controls.Add(Group("VRChat", c =>
@@ -286,36 +287,44 @@ public sealed class MainForm : Form
 
     private void ApplyConfig(Control row)
     {
+        ApplyOne(row);
         foreach (var c in row.Controls.OfType<Control>())
         {
-            switch (c)
-            {
-                case ComboBox cb when cb.Tag is "source":
-                    SelectByCode(cb, _cfg.SourceLanguage); break;
-                case ComboBox cb when cb.Tag is "target":
-                    SelectByCode(cb, _cfg.TargetLanguage); break;
-                case ComboBox cb when cb.Tag is "recognizer":
-                    cb.SelectedIndex = _cfg.Recognizer; break;
-                case ComboBox cb when cb.Tag is "translator":
-                    cb.SelectedIndex = _cfg.Translator; break;
-                case ComboBox cb when cb.Tag is "anchor":
-                    cb.SelectedIndex = _cfg.OverlayAnchor; break;
-                case CheckBox chk when chk.Tag is Func<bool> get:
-                    SetCheckedSilently(chk, get()); break;
-                case NumericUpDown n when n.Tag is Func<int> get:
-                    n.Value = Math.Clamp(get(), n.Minimum, n.Maximum); break;
-                case NumericUpDown n when n.Tag is Func<double> getD:
-                    n.Value = (decimal)Math.Clamp(getD(), (double)n.Minimum, (double)n.Maximum); break;
-                case TextBox t when t.Tag is Func<string> get:
-                    t.Text = get(); break;
-                case TrackBar tr when tr.Tag is "opacity":
-                    tr.Value = Math.Clamp(_cfg.OverlayOpacity, tr.Minimum, tr.Maximum);
-                    foreach (var lab in tr.Parent!.Controls.OfType<Label>())
-                        lab.Text = tr.Value + "%";
-                    break;
-                case Panel p:
-                    ApplyConfig(p); break;
-            }
+            if (c is Panel p) ApplyConfig(p);
+            else ApplyOne(c);
+        }
+    }
+
+    // FORK: ApplyOne handles the control itself; ApplyConfig recurses into
+    // children. Previously only children were processed, so CheckBoxes added
+    // directly to a group never loaded their saved value (visible desync).
+    private void ApplyOne(Control c)
+    {
+        switch (c)
+        {
+            case ComboBox cb when cb.Tag is "source":
+                SelectByCode(cb, _cfg.SourceLanguage); break;
+            case ComboBox cb when cb.Tag is "target":
+                SelectByCode(cb, _cfg.TargetLanguage); break;
+            case ComboBox cb when cb.Tag is "recognizer":
+                cb.SelectedIndex = _cfg.Recognizer; break;
+            case ComboBox cb when cb.Tag is "translator":
+                cb.SelectedIndex = _cfg.Translator; break;
+            case ComboBox cb when cb.Tag is "anchor":
+                cb.SelectedIndex = _cfg.OverlayAnchor; break;
+            case CheckBox chk when chk.Tag is Func<bool> get:
+                SetCheckedSilently(chk, get()); break;
+            case NumericUpDown n when n.Tag is Func<int> get:
+                n.Value = Math.Clamp(get(), n.Minimum, n.Maximum); break;
+            case NumericUpDown n when n.Tag is Func<double> getD:
+                n.Value = (decimal)Math.Clamp(getD(), (double)n.Minimum, (double)n.Maximum); break;
+            case TextBox t when t.Tag is Func<string> get:
+                t.Text = get(); break;
+            case TrackBar tr when tr.Tag is "opacity":
+                tr.Value = Math.Clamp(_cfg.OverlayOpacity, tr.Minimum, tr.Maximum);
+                foreach (var lab in tr.Parent!.Controls.OfType<Label>())
+                    lab.Text = tr.Value + "%";
+                break;
         }
     }
 
@@ -349,6 +358,12 @@ public sealed class MainForm : Form
             }
         }
         finally { _loading = false; }
+    }
+
+    private void ApplyLogFont()
+    {
+        if (_feedBox != null)
+            _feedBox.Font = new Font("Consolas", Math.Clamp(_cfg.LogFontSize, 8, 24));
     }
 
     private void WireEngine()

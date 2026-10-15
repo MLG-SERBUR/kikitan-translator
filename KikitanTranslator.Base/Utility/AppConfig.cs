@@ -262,7 +262,7 @@ public class ConfigObject : INotifyPropertyChanged
         }
     }
 
-    [JsonProperty("desktop_translation")] private bool _desktopTranslation = false;
+    [JsonProperty("desktop_translation")] private bool _desktopTranslation = true;
 
     [JsonIgnore]
     public bool DesktopTranslation
@@ -572,6 +572,22 @@ public class ConfigObject : INotifyPropertyChanged
             if (_feedShowTranscription != value)
             {
                 _feedShowTranscription = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+    // FORK: log text size in the app window. Default 10.
+    [JsonProperty("log_font_size")] private int _logFontSize = 10;
+
+    [JsonIgnore]
+    public int LogFontSize
+    {
+        get => _logFontSize;
+        set
+        {
+            if (_logFontSize != value)
+            {
+                _logFontSize = value;
                 OnPropertyChanged();
             }
         }

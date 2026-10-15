@@ -3,6 +3,7 @@
 // (it depends only on SkiaSharp + the feed DTOs).
 
 using SkiaSharp;
+using SkiaSharp.HarfBuzz;
 
 namespace KikitanTranslator.Overlay;
 
@@ -15,8 +16,36 @@ internal static class FeedRenderer
         public SKColor Color;
         public bool FirstOfEntry;
     }
+    private static bool ContainsRtl(string s)
+    {
+        foreach (var c in s)
+            if (c is >= '\u0590' and <= '\u08FF') return true;
+        return false;
+    }
+
+    // FORK: HarfBuzz shaping for RTL text (Arabic/Hebrew). The char-by-char
+    // path below breaks Arabic joining and ordering; HarfBuzz does proper
+    // complex-text shaping, bidi, and glyph selection.
+    private static void DrawTextShaped(SKCanvas canvas, string text, float x, float y, SKPaint paint, float fontSize)
+    {
+        var style = new SKFontStyle(SKFontStyleWeight.Normal, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright);
+        var typeface = SKFontManager.Default.MatchCharacter(null, style, null, 'ا')
+                       ?? SKTypeface.FromFamilyName("Arial");
+        using var font = new SKFont(typeface, fontSize);
+        using var shaper = new SKShaper(typeface);
+        using var dp = paint.Clone();
+        dp.TextAlign = SKTextAlign.Left;
+        canvas.DrawShapedText(shaper, text, x, y, SKTextAlign.Left, font, dp);
+    }
+
     private static void DrawTextLeftWithFallback(SKCanvas canvas, string text, float x, float y, SKPaint paint, float fontSize)
     {
+        if (ContainsRtl(text))
+        {
+            DrawTextShaped(canvas, text, x, y, paint, fontSize);
+            return;
+        }
+
         var fontManager = SKFontManager.Default;
         var style = new SKFontStyle(
             paint.FakeBoldText ? SKFontStyleWeight.Bold : SKFontStyleWeight.Normal,
