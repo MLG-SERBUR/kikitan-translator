@@ -4,6 +4,8 @@
 name: Build KikiVRCTan portable (fork)
 
 on:
+  push:
+    branches: [feed-overlay]
   workflow_dispatch:
 
 permissions:
