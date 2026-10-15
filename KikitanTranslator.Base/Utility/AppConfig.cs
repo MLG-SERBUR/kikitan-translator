@@ -593,7 +593,7 @@ public class ConfigObject : INotifyPropertyChanged
         }
     }
     // FORK: WinForms UI scale percent for touch/VR use. 100 = current size.
-    // Applied at startup; changing it needs an app restart.
+    // Applied live by MainForm; no restart needed.
     [JsonProperty("ui_scale")] private int _uiScale = 100;
 
     [JsonIgnore]

@@ -23,7 +23,10 @@ public sealed class MainForm : Form
     // FORK (vr-touch): global UI scale factor from AppConfig.UiScale (percent).
     // Applied to base font plus all hardcoded layout sizes so controls grow
     // proportionally and stay touch-usable in VR. 1.0 = previous size.
-    private readonly float _uiFactor = 1f;
+    // RebuildForUiScale applies it live, so no app restart is needed.
+    private float _uiFactor = 1f;
+    private Font? _ownedFont;
+    private bool _wired;
 
     private record LangOption(string Code, string Name);
 
@@ -31,21 +34,49 @@ public sealed class MainForm : Form
     {
         _engine = engine;
         _cfg = AppConfig.ConfigObject;
-        _uiFactor = Math.Clamp(_cfg.UiScale, 80, 250) / 100f;
-
-        AutoScaleMode = AutoScaleMode.Dpi;
-        Font = new Font(Font.FontFamily, 9f * _uiFactor);
 
         Text = "KikiVRCTan"; // FORK (feed-overlay): product name
-        Width = S(980);
-        Height = S(720);
-        MinimumSize = new Size(S(820), S(560));
+        RebuildForUiScale();
+    }
 
-        BuildLayout();
-        LoadFromConfig();
-        WireEngine();
+    private void RebuildForUiScale()
+    {
+        _loading = true;
+        try
+        {
+            _uiFactor = Math.Clamp(_cfg.UiScale, 80, 250) / 100f;
+            var familyName = Font.FontFamily.Name;
+            _ownedFont?.Dispose();
+            _ownedFont = new Font(familyName, 9f * _uiFactor);
+            Font = _ownedFont;
+            Width = S(980);
+            Height = S(720);
+            MinimumSize = new Size(S(820), S(560));
 
-        _loading = false;
+            foreach (var c in Controls.OfType<Control>().ToArray())
+                c.Dispose();
+
+            BuildLayout();
+            LoadFromConfig();
+            ApplyLogFont();
+            RepopulateFeed();
+            if (!_wired)
+            {
+                WireEngine();
+                _wired = true;
+            }
+        }
+        finally { _loading = false; }
+    }
+
+    private void RepopulateFeed()
+    {
+        _feedLineCount = 0;
+        foreach (var e in _engine.Feed.GetSnapshot().TakeLast(240))
+        {
+            _feedBox.AppendText(e.DisplayText(true, _cfg.FeedShowTranscription) + Environment.NewLine);
+            _feedLineCount++;
+        }
     }
 
     private void BuildLayout()
@@ -84,7 +115,6 @@ public sealed class MainForm : Form
             c.Controls.Add(_updateButton);
             c.Controls.Add(Row("Log size:", Num(8, 24, v => { _cfg.LogFontSize = v; ApplyLogFont(); }, () => _cfg.LogFontSize)));
             c.Controls.Add(Row("UI size %:", UiScaleRow()));
-            c.Controls.Add(new Label { Text = "UI size needs app restart.", AutoSize = true });
         }));
 
         settings.Controls.Add(Group("Speech", c =>
@@ -149,19 +179,26 @@ public sealed class MainForm : Form
         _updater = new Updater();
         _updater.StatusChanged += msg => BeginInvoke(() => _status.Text = msg);
         _updater.UpdateReady += () => BeginInvoke(() => _updateButton.Visible = true);
-        Task.Run(() => _updater.CheckAsync());
+        if (!_wired) Task.Run(() => _updater.CheckAsync());
     }
 
     private int S(int px) => (int)Math.Round(px * _uiFactor);
 
     private NumericUpDown UiScaleRow()
     {
-        var n = Num(80, 200,
+        var n = Num(80, 250,
             v =>
             {
                 if (_loading) return;
+                if (_cfg.UiScale == v) return;
                 _cfg.UiScale = v;
-                _status.Text = $"UI size {v}% — restart app to apply";
+                // Rebuild once this event unwinds: the raising control is
+                // disposed by the rebuild.
+                BeginInvoke((Action)(() =>
+                {
+                    RebuildForUiScale();
+                    _status.Text = $"UI size {_cfg.UiScale}% applied";
+                }));
             },
             () => _cfg.UiScale);
         n.Increment = 10;
