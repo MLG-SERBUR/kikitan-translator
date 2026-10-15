@@ -10,10 +10,24 @@ public sealed class FeedEntry
     public string Original { get; init; } = "";
     public string Translation { get; init; } = "";
 
-    public string DisplayText(bool showTimestamps)
+    public string DisplayText(bool showTimestamps, bool showTranscription)
     {
-        var body = Translation.Length > 0 ? $"{Original} → {Translation}" : Original;
+        var body = showTranscription && Translation.Length > 0
+            ? $"{Bidi(Original)} → {Bidi(Translation)}"
+            : Bidi(Translation.Length > 0 ? Translation : Original);
         return showTimestamps ? $"[{Timestamp:HH:mm:ss}] {body}" : body;
+    }
+
+    // Wrap RTL text (Arabic, Hebrew, ...) in directional isolates so it renders
+    // in the correct order inside an LTR log line.
+    private static string Bidi(string s)
+    {
+        foreach (var c in s)
+        {
+            if (c is >= '\u0590' and <= '\u08FF')
+                return "\u2066" + s + "\u2069";
+        }
+        return s;
     }
 }
 

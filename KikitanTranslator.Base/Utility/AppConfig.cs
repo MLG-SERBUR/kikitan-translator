@@ -559,6 +559,23 @@ public class ConfigObject : INotifyPropertyChanged
             }
         }
     }
+    // FORK: show the original transcription alongside the translation in the
+    // app log. Default true.
+    [JsonProperty("feed_show_transcription")] private bool _feedShowTranscription = true;
+
+    [JsonIgnore]
+    public bool FeedShowTranscription
+    {
+        get => _feedShowTranscription;
+        set
+        {
+            if (_feedShowTranscription != value)
+            {
+                _feedShowTranscription = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     // END FORK
 
     protected void OnPropertyChanged([CallerMemberName] string propertyName = null)

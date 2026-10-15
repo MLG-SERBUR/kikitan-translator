@@ -41,28 +41,7 @@ public sealed class MainForm : Form
 
     private void BuildLayout()
     {
-        var top = new FlowLayoutPanel
-        {
-            Dock = DockStyle.Top, Height = 44, Padding = new Padding(8),
-            FlowDirection = FlowDirection.LeftToRight, WrapContents = false,
-        };
-        _startStop = new Button { Text = "Start", Width = 90, Height = 28 };
-        _startStop.Click += (_, _) =>
-        {
-            if (_engine.IsRunning) _engine.Stop(); else _engine.Start();
-            _startStop.Text = _engine.IsRunning ? "Stop" : "Start";
-        };
-        _status = new Label { Text = "Stopped", AutoSize = true, Padding = new Padding(8, 6, 0, 0) };
-        _muted = new Label { Text = "", AutoSize = true, Padding = new Padding(8, 6, 0, 0), ForeColor = Color.DarkRed };
-        var clearFeed = new Button { Text = "Clear feed", Width = 90, Height = 28 };
-        clearFeed.Click += (_, _) => { _engine.Feed.Clear(); _feedBox.Clear(); _feedLineCount = 0; };
-        top.Controls.AddRange([_startStop, _status, _muted, clearFeed]);
-        _updateButton = new Button { Text = "Restart to update", Width = 130, Height = 28, Visible = false };
-        _updateButton.Click += (_, _) => _updater.ApplyAndRestart();
-        top.Controls.Add(_updateButton);
-        Controls.Add(top);
-
-        var split = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 290 };
+        var split = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 265 };
         Controls.Add(split);
 
         var settings = new FlowLayoutPanel
@@ -72,6 +51,30 @@ public sealed class MainForm : Form
         };
         split.Panel1.Controls.Add(settings);
 
+        _startStop = new Button { Text = "Start", Width = 90, Height = 28 };
+        _startStop.Click += (_, _) =>
+        {
+            if (_engine.IsRunning) _engine.Stop(); else _engine.Start();
+            _startStop.Text = _engine.IsRunning ? "Stop" : "Start";
+        };
+        _status = new Label { Text = "Stopped", AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
+        _muted = new Label { Text = "", AutoSize = true, ForeColor = Color.DarkRed };
+        var clearFeed = new Button { Text = "Clear feed", Width = 90, Height = 28 };
+        clearFeed.Click += (_, _) => { _engine.Feed.Clear(); _feedBox.Clear(); _feedLineCount = 0; };
+        _updateButton = new Button { Text = "Restart to update", Width = 130, Height = 28, Visible = false };
+        _updateButton.Click += (_, _) => _updater.ApplyAndRestart();
+
+        settings.Controls.Add(Group("Control", c =>
+        {
+            var row = new FlowLayoutPanel { FlowDirection = FlowDirection.LeftToRight, AutoSize = true, WrapContents = false };
+            row.Controls.Add(_startStop);
+            row.Controls.Add(clearFeed);
+            c.Controls.Add(row);
+            c.Controls.Add(_status);
+            c.Controls.Add(_muted);
+            c.Controls.Add(_updateButton);
+        }));
+
         settings.Controls.Add(Group("Speech", c =>
         {
             c.Controls.Add(Row("From:", SourceCombo()));
@@ -79,7 +82,7 @@ public sealed class MainForm : Form
             c.Controls.Add(Row("Recognizer:", RecognizerCombo()));
             c.Controls.Add(Row("Translator:", TranslatorCombo()));
             c.Controls.Add(MicLabeledRow());
-            c.Controls.Add(Check("Speech-to-text only", v => _cfg.SpeechToTextOnly = v, () => _cfg.SpeechToTextOnly));
+            c.Controls.Add(Check("Show transcription", v => _cfg.FeedShowTranscription = v, () => _cfg.FeedShowTranscription));
             c.Controls.Add(Check("Translate desktop audio", v => _cfg.DesktopTranslation = v, () => _cfg.DesktopTranslation));
         }));
 
@@ -135,7 +138,7 @@ public sealed class MainForm : Form
 
     private static GroupBox Group(string title, Action<FlowLayoutPanel> build)
     {
-        var g = new GroupBox { Text = title, Width = 270, Padding = new Padding(6), AutoSize = true };
+        var g = new GroupBox { Text = title, Width = 250, Padding = new Padding(6), AutoSize = true };
         var p = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -148,9 +151,9 @@ public sealed class MainForm : Form
 
     private static Panel Row(string label, Control control)
     {
-        var p = new Panel { Width = 280, Height = 30 };
-        var l = new Label { Text = label, Width = 100, Top = 6, Left = 0, AutoSize = false };
-        control.Left = 104; control.Top = 3; control.Width = 170;
+        var p = new Panel { Width = 240, Height = 30 };
+        var l = new Label { Text = label, Width = 80, Top = 6, Left = 0, AutoSize = false };
+        control.Left = 84; control.Top = 3; control.Width = 150;
         p.Controls.Add(l); p.Controls.Add(control);
         return p;
     }
@@ -205,14 +208,14 @@ public sealed class MainForm : Form
 
     private Panel MicLabeledRow()
     {
-        var p = new Panel { Width = 280, Height = 30 };
-        var l = new Label { Text = "Mic:", Width = 100, Top = 6, Left = 0, AutoSize = false };
-        _micCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Left = 104, Top = 3, Width = 110 };
+        var p = new Panel { Width = 240, Height = 30 };
+        var l = new Label { Text = "Mic:", Width = 80, Top = 6, Left = 0, AutoSize = false };
+        _micCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Left = 84, Top = 3, Width = 90 };
         _micCombo.SelectedIndexChanged += (_, _) =>
         {
             if (!_loading && _micCombo.SelectedItem is string name) _cfg.Microphone = name;
         };
-        var refresh = new Button { Text = "Refresh", Left = 220, Top = 2, Width = 58, Height = 24 };
+        var refresh = new Button { Text = "Refresh", Left = 180, Top = 2, Width = 56, Height = 24 };
         refresh.Click += (_, _) => RefreshMics();
         p.Controls.Add(l); p.Controls.Add(_micCombo); p.Controls.Add(refresh);
         return p;
@@ -245,16 +248,16 @@ public sealed class MainForm : Form
 
     private static TextBox KeyBox(Action<string> set, Func<string> get)
     {
-        var t = new TextBox { PasswordChar = '•', Tag = get, Width = 170 };
+        var t = new TextBox { PasswordChar = '•', Tag = get, Width = 150 };
         t.TextChanged += (_, _) => set(t.Text);
         return t;
     }
 
     private Panel OpacityRow()
     {
-        var p = new Panel { Width = 280, Height = 30 };
-        var tr = new TrackBar { Minimum = 10, Maximum = 100, TickFrequency = 10, Left = 0, Top = 0, Width = 120 };
-        var lab = new Label { Left = 126, Top = 6, Width = 44, Tag = (Func<int>)(() => _cfg.OverlayOpacity) };
+        var p = new Panel { Width = 240, Height = 30 };
+        var tr = new TrackBar { Minimum = 10, Maximum = 100, TickFrequency = 10, Left = 0, Top = 0, Width = 100 };
+        var lab = new Label { Left = 104, Top = 6, Width = 40, Tag = (Func<int>)(() => _cfg.OverlayOpacity) };
         tr.ValueChanged += (_, _) => { if (!_loading) _cfg.OverlayOpacity = tr.Value; lab.Text = tr.Value + "%"; };
         tr.Tag = "opacity";
         p.Controls.Add(tr); p.Controls.Add(lab);
@@ -350,7 +353,7 @@ public sealed class MainForm : Form
         _engine.MuteChanged += muted => BeginInvoke(() => _muted.Text = muted ? "MUTED" : "");
         _engine.Feed.EntryAdded += entry => BeginInvoke(() =>
         {
-            _feedBox.AppendText(entry.DisplayText(true) + Environment.NewLine);
+            _feedBox.AppendText(entry.DisplayText(true, _cfg.FeedShowTranscription) + Environment.NewLine);
             if (++_feedLineCount > 240)
             {
                 // Drop the oldest 40 lines; keep the view pinned to the end.
