@@ -38,7 +38,9 @@ and a native Windows UI, without touching the speech/translation backend.
   `overlay_anchor`, `overlay_width_cm`, `overlay_show_timestamps`,
   `overlay_show_original`, `overlay_display_duration_sec`,
   `overlay_fadeout_duration_sec`, `overlay_pos_x/y/z`,
-  `desktop_overlay_enabled`). Unknown to upstream builds, which ignore extra
+  `desktop_overlay_enabled`) plus WinForms-only UI settings
+  (`ui_scale`: window/control scale percent, applied at startup;
+  `log_font_size`). Unknown to upstream builds, which ignore extra
   JSON members.
 
 **`KikitanTranslator.Overlay`** — additive + small marked edits:

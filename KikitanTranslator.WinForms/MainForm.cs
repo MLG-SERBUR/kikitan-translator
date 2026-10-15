@@ -20,17 +20,26 @@ public sealed class MainForm : Form
     private ComboBox _micCombo = null!;
     private bool _loading = true;
 
+    // FORK (vr-touch): global UI scale factor from AppConfig.UiScale (percent).
+    // Applied to base font plus all hardcoded layout sizes so controls grow
+    // proportionally and stay touch-usable in VR. 1.0 = previous size.
+    private readonly float _uiFactor = 1f;
+
     private record LangOption(string Code, string Name);
 
     public MainForm(AppEngine engine)
     {
         _engine = engine;
         _cfg = AppConfig.ConfigObject;
+        _uiFactor = Math.Clamp(_cfg.UiScale, 80, 250) / 100f;
+
+        AutoScaleMode = AutoScaleMode.Dpi;
+        Font = new Font(Font.FontFamily, 9f * _uiFactor);
 
         Text = "KikiVRCTan"; // FORK (feed-overlay): product name
-        Width = 980;
-        Height = 720;
-        MinimumSize = new Size(820, 560);
+        Width = S(980);
+        Height = S(720);
+        MinimumSize = new Size(S(820), S(560));
 
         BuildLayout();
         LoadFromConfig();
@@ -47,21 +56,21 @@ public sealed class MainForm : Form
         var settings = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, AutoScroll = true, FlowDirection = FlowDirection.TopDown,
-            WrapContents = false, Padding = new Padding(8),
+            WrapContents = false, Padding = new Padding(S(8)),
         };
         split.Panel1.Controls.Add(settings);
 
-        _startStop = new Button { Text = "Start", Width = 90, Height = 28 };
+        _startStop = new Button { Text = "Start", Width = S(90), Height = S(28) };
         _startStop.Click += (_, _) =>
         {
             if (_engine.IsRunning) _engine.Stop(); else _engine.Start();
             _startStop.Text = _engine.IsRunning ? "Stop" : "Start";
         };
-        _status = new Label { Text = "Stopped", AutoSize = true, Padding = new Padding(0, 6, 0, 0) };
+        _status = new Label { Text = "Stopped", AutoSize = true, Padding = new Padding(0, S(6), 0, 0) };
         _muted = new Label { Text = "", AutoSize = true, ForeColor = Color.DarkRed };
-        var clearFeed = new Button { Text = "Clear feed", Width = 90, Height = 28 };
+        var clearFeed = new Button { Text = "Clear feed", Width = S(90), Height = S(28) };
         clearFeed.Click += (_, _) => { _engine.Feed.Clear(); _feedBox.Clear(); _feedLineCount = 0; };
-        _updateButton = new Button { Text = "Restart to update", Width = 130, Height = 28, Visible = false };
+        _updateButton = new Button { Text = "Restart to update", Width = S(130), Height = S(28), Visible = false };
         _updateButton.Click += (_, _) => _updater.ApplyAndRestart();
 
         settings.Controls.Add(Group("Control", c =>
@@ -74,6 +83,8 @@ public sealed class MainForm : Form
             c.Controls.Add(_muted);
             c.Controls.Add(_updateButton);
             c.Controls.Add(Row("Log size:", Num(8, 24, v => { _cfg.LogFontSize = v; ApplyLogFont(); }, () => _cfg.LogFontSize)));
+            c.Controls.Add(Row("UI size %:", UiScaleRow()));
+            c.Controls.Add(new Label { Text = "UI size needs app restart.", AutoSize = true });
         }));
 
         settings.Controls.Add(Group("Speech", c =>
@@ -133,7 +144,7 @@ public sealed class MainForm : Form
 
         // Set after layout so the distance sticks (initializer-time sets can be
         // clamped before the control is sized).
-        split.SplitterDistance = 320;
+        split.SplitterDistance = S(320);
 
         _updater = new Updater();
         _updater.StatusChanged += msg => BeginInvoke(() => _status.Text = msg);
@@ -141,9 +152,25 @@ public sealed class MainForm : Form
         Task.Run(() => _updater.CheckAsync());
     }
 
-    private static GroupBox Group(string title, Action<FlowLayoutPanel> build)
+    private int S(int px) => (int)Math.Round(px * _uiFactor);
+
+    private NumericUpDown UiScaleRow()
     {
-        var g = new GroupBox { Text = title, Width = 300, Padding = new Padding(6), AutoSize = true };
+        var n = Num(80, 200,
+            v =>
+            {
+                if (_loading) return;
+                _cfg.UiScale = v;
+                _status.Text = $"UI size {v}% — restart app to apply";
+            },
+            () => _cfg.UiScale);
+        n.Increment = 10;
+        return n;
+    }
+
+    private GroupBox Group(string title, Action<FlowLayoutPanel> build)
+    {
+        var g = new GroupBox { Text = title, Width = S(300), Padding = new Padding(S(6)), AutoSize = true };
         var p = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -154,11 +181,11 @@ public sealed class MainForm : Form
         return g;
     }
 
-    private static Panel Row(string label, Control control)
+    private Panel Row(string label, Control control)
     {
-        var p = new Panel { Width = 280, Height = 30 };
-        var l = new Label { Text = label, Width = 100, Top = 6, Left = 0, AutoSize = false };
-        control.Left = 104; control.Top = 3; control.Width = 170;
+        var p = new Panel { Width = S(280), Height = S(30) };
+        var l = new Label { Text = label, Width = S(100), Top = S(6), Left = 0, AutoSize = false };
+        control.Left = S(104); control.Top = S(3); control.Width = S(170);
         p.Controls.Add(l); p.Controls.Add(control);
         return p;
     }
@@ -213,14 +240,14 @@ public sealed class MainForm : Form
 
     private Panel MicLabeledRow()
     {
-        var p = new Panel { Width = 280, Height = 30 };
-        var l = new Label { Text = "Mic:", Width = 100, Top = 6, Left = 0, AutoSize = false };
-        _micCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Left = 104, Top = 3, Width = 110 };
+        var p = new Panel { Width = S(280), Height = S(30) };
+        var l = new Label { Text = "Mic:", Width = S(100), Top = S(6), Left = 0, AutoSize = false };
+        _micCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Left = S(104), Top = S(3), Width = S(110) };
         _micCombo.SelectedIndexChanged += (_, _) =>
         {
             if (!_loading && _micCombo.SelectedItem is string name) _cfg.Microphone = name;
         };
-        var refresh = new Button { Text = "Refresh", Left = 220, Top = 2, Width = 58, Height = 24 };
+        var refresh = new Button { Text = "Refresh", Left = S(220), Top = S(2), Width = S(58), Height = S(24) };
         refresh.Click += (_, _) => RefreshMics();
         p.Controls.Add(l); p.Controls.Add(_micCombo); p.Controls.Add(refresh);
         return p;
@@ -251,18 +278,18 @@ public sealed class MainForm : Form
         return n;
     }
 
-    private static TextBox KeyBox(Action<string> set, Func<string> get)
+    private TextBox KeyBox(Action<string> set, Func<string> get)
     {
-        var t = new TextBox { PasswordChar = '•', Tag = get, Width = 170 };
+        var t = new TextBox { PasswordChar = '•', Tag = get, Width = S(170) };
         t.TextChanged += (_, _) => set(t.Text);
         return t;
     }
 
     private Panel OpacityRow()
     {
-        var p = new Panel { Width = 280, Height = 30 };
-        var tr = new TrackBar { Minimum = 10, Maximum = 100, TickFrequency = 10, Left = 0, Top = 0, Width = 120 };
-        var lab = new Label { Left = 126, Top = 6, Width = 44, Tag = (Func<int>)(() => _cfg.OverlayOpacity) };
+        var p = new Panel { Width = S(280), Height = S(30) };
+        var tr = new TrackBar { Minimum = 10, Maximum = 100, TickFrequency = 10, Left = 0, Top = 0, Width = S(120) };
+        var lab = new Label { Left = S(126), Top = S(6), Width = S(44), Tag = (Func<int>)(() => _cfg.OverlayOpacity) };
         tr.ValueChanged += (_, _) => { if (!_loading) _cfg.OverlayOpacity = tr.Value; lab.Text = tr.Value + "%"; };
         tr.Tag = "opacity";
         p.Controls.Add(tr); p.Controls.Add(lab);

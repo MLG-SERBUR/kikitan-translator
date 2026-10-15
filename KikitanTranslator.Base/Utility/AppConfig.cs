@@ -592,6 +592,24 @@ public class ConfigObject : INotifyPropertyChanged
             }
         }
     }
+    // FORK: WinForms UI scale percent for touch/VR use. 100 = current size.
+    // Applied at startup; changing it needs an app restart.
+    [JsonProperty("ui_scale")] private int _uiScale = 100;
+
+    [JsonIgnore]
+    public int UiScale
+    {
+        get => _uiScale;
+        set
+        {
+            var clamped = Math.Clamp(value, 80, 250);
+            if (_uiScale != clamped)
+            {
+                _uiScale = clamped;
+                OnPropertyChanged();
+            }
+        }
+    }
     // END FORK
 
     protected void OnPropertyChanged([CallerMemberName] string propertyName = null)
