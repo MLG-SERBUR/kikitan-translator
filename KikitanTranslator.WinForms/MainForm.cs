@@ -41,7 +41,7 @@ public sealed class MainForm : Form
 
     private void BuildLayout()
     {
-        var split = new SplitContainer { Dock = DockStyle.Fill, SplitterDistance = 265 };
+        var split = new SplitContainer { Dock = DockStyle.Fill };
         Controls.Add(split);
 
         var settings = new FlowLayoutPanel
@@ -130,6 +130,10 @@ public sealed class MainForm : Form
         };
         split.Panel2.Controls.Add(_feedBox);
 
+        // Set after layout so the distance sticks (initializer-time sets can be
+        // clamped before the control is sized).
+        split.SplitterDistance = 320;
+
         _updater = new Updater();
         _updater.StatusChanged += msg => BeginInvoke(() => _status.Text = msg);
         _updater.UpdateReady += () => BeginInvoke(() => _updateButton.Visible = true);
@@ -138,7 +142,7 @@ public sealed class MainForm : Form
 
     private static GroupBox Group(string title, Action<FlowLayoutPanel> build)
     {
-        var g = new GroupBox { Text = title, Width = 250, Padding = new Padding(6), AutoSize = true };
+        var g = new GroupBox { Text = title, Width = 300, Padding = new Padding(6), AutoSize = true };
         var p = new FlowLayoutPanel
         {
             Dock = DockStyle.Fill, FlowDirection = FlowDirection.TopDown,
@@ -151,9 +155,9 @@ public sealed class MainForm : Form
 
     private static Panel Row(string label, Control control)
     {
-        var p = new Panel { Width = 240, Height = 30 };
-        var l = new Label { Text = label, Width = 80, Top = 6, Left = 0, AutoSize = false };
-        control.Left = 84; control.Top = 3; control.Width = 150;
+        var p = new Panel { Width = 280, Height = 30 };
+        var l = new Label { Text = label, Width = 100, Top = 6, Left = 0, AutoSize = false };
+        control.Left = 104; control.Top = 3; control.Width = 170;
         p.Controls.Add(l); p.Controls.Add(control);
         return p;
     }
@@ -208,14 +212,14 @@ public sealed class MainForm : Form
 
     private Panel MicLabeledRow()
     {
-        var p = new Panel { Width = 240, Height = 30 };
-        var l = new Label { Text = "Mic:", Width = 80, Top = 6, Left = 0, AutoSize = false };
-        _micCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Left = 84, Top = 3, Width = 90 };
+        var p = new Panel { Width = 280, Height = 30 };
+        var l = new Label { Text = "Mic:", Width = 100, Top = 6, Left = 0, AutoSize = false };
+        _micCombo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Left = 104, Top = 3, Width = 110 };
         _micCombo.SelectedIndexChanged += (_, _) =>
         {
             if (!_loading && _micCombo.SelectedItem is string name) _cfg.Microphone = name;
         };
-        var refresh = new Button { Text = "Refresh", Left = 180, Top = 2, Width = 56, Height = 24 };
+        var refresh = new Button { Text = "Refresh", Left = 220, Top = 2, Width = 58, Height = 24 };
         refresh.Click += (_, _) => RefreshMics();
         p.Controls.Add(l); p.Controls.Add(_micCombo); p.Controls.Add(refresh);
         return p;
@@ -248,16 +252,16 @@ public sealed class MainForm : Form
 
     private static TextBox KeyBox(Action<string> set, Func<string> get)
     {
-        var t = new TextBox { PasswordChar = '•', Tag = get, Width = 150 };
+        var t = new TextBox { PasswordChar = '•', Tag = get, Width = 170 };
         t.TextChanged += (_, _) => set(t.Text);
         return t;
     }
 
     private Panel OpacityRow()
     {
-        var p = new Panel { Width = 240, Height = 30 };
-        var tr = new TrackBar { Minimum = 10, Maximum = 100, TickFrequency = 10, Left = 0, Top = 0, Width = 100 };
-        var lab = new Label { Left = 104, Top = 6, Width = 40, Tag = (Func<int>)(() => _cfg.OverlayOpacity) };
+        var p = new Panel { Width = 280, Height = 30 };
+        var tr = new TrackBar { Minimum = 10, Maximum = 100, TickFrequency = 10, Left = 0, Top = 0, Width = 120 };
+        var lab = new Label { Left = 126, Top = 6, Width = 44, Tag = (Func<int>)(() => _cfg.OverlayOpacity) };
         tr.ValueChanged += (_, _) => { if (!_loading) _cfg.OverlayOpacity = tr.Value; lab.Text = tr.Value + "%"; };
         tr.Tag = "opacity";
         p.Controls.Add(tr); p.Controls.Add(lab);
