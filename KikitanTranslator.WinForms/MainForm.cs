@@ -136,7 +136,6 @@ public sealed class MainForm : Form
             c.Controls.Add(Check("Disable when muted", v => _cfg.DisableWhenMuted = v, () => _cfg.DisableWhenMuted));
             c.Controls.Add(Check("Send user data (OSC)", v => _cfg.SendUserData = v, () => _cfg.SendUserData));
             c.Controls.Add(Row("Chatbox ms/char:", Num(1, 200, v => _cfg.ChatboxWaitPerCharMs = v, () => _cfg.ChatboxWaitPerCharMs)));
-            c.Controls.Add(Row("OSC port:", Num(1024, 65535, v => _cfg.OscPort = v, () => _cfg.OscPort)));
         }));
 
         settings.Controls.Add(Group("API keys", c =>
