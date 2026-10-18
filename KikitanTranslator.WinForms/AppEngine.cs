@@ -171,6 +171,8 @@ public sealed class AppEngine : IDisposable
         {
             var cfg = AppConfig.ConfigObject;
             var entries = Feed.GetSnapshot()
+                // FORK: overlay is incoming-only; own mic translations never shown here.
+                .Where(e => e.FromDesktop)
                 .TakeLast(Math.Max(1, cfg.OverlayMaxEntries))
                 .ToArray();
             _feedWriter?.Write(entries, CurrentOverlayConfig());
@@ -202,7 +204,11 @@ public sealed class AppEngine : IDisposable
 
         var errorHandler = new WinErrorHandler(msg => StatusChanged?.Invoke(msg));
 
-        _microphoneKikitan = new Kikitan(rMic, _translator, errorHandler, false);
+        _microphoneKikitan = new Kikitan(rMic, _translator, errorHandler, false,
+            // FORK: when "disable when muted" is on, drop mic input at recognition
+            // time (no transcription/translation). In-flight items already queued
+            // still send, so muting mid-utterance doesn't kill them.
+            () => !(cfg.DisableWhenMuted && _isMuted));
         // FORK: feed is incoming-only by default (like VRCT); own mic only when enabled.
         if (cfg.FeedShowOwn)
             _microphoneKikitan.AddOutput(new Custom((r, t, f) => { if (f) Feed.Add(false, r, t); }, false));
@@ -210,15 +216,9 @@ public sealed class AppEngine : IDisposable
         if (cfg.SendToChatbox)
         {
             var chatbox = new Chatbox();
-            _microphoneKikitan.AddOutput(new Custom((r, t, f) =>
-            {
-                if (cfg.DisableWhenMuted && _isMuted)
-                {
-                    if (f) Log.Debug("[FORK] Chatbox output skipped (muted)");
-                    return;
-                }
-                chatbox.Send(r, t, f);
-            }, true));
+            // FORK: no mute check here; muting is enforced at recognition time so
+            // in-flight translations still complete.
+            _microphoneKikitan.AddOutput(new Custom((r, t, f) => chatbox.Send(r, t, f), true));
         }
 
         if (cfg.SendUserData) _microphoneKikitan.AddOutput(new OSC("/microphone"));

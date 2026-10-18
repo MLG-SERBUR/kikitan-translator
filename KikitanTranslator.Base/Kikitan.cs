@@ -18,14 +18,18 @@ public class Kikitan : IDisposable
 
     private bool _running;
     private bool _isLoopback;
+    // FORK: optional gate checked at recognition time (not send time), so speech
+    // captured before the gate closed still completes. Used for mic-mute.
+    private readonly Func<bool>? _shouldProcess;
     
     public event OnRecognizerStatus? OnRecognizerStatusChanged;
 
-    public Kikitan(IRecognizer recognizer, ITranslator translator, IErrorHandler errorHandler, bool loopback)
+    public Kikitan(IRecognizer recognizer, ITranslator translator, IErrorHandler errorHandler, bool loopback, Func<bool>? shouldProcess = null)
     {
         _recognizer = recognizer;
         _translator = translator;
         _errorHandler = errorHandler;
+        _shouldProcess = shouldProcess;
 
         recognizer.OnRecognitionReceived += OnRecognition;
         recognizer.OnRecognizerStatusChanged += OnRecognizerStatus;
@@ -57,6 +61,13 @@ public class Kikitan : IDisposable
     private void OnRecognition(string text, bool final)
     {
         if (final) Log.Debug($"[KKTN] Final recognition received: desktop={_isLoopback}, chars={text.Length}, running={_running}");
+        // FORK: drop here, before any translation work. In-flight items already
+        // queued are unaffected, so muting mid-utterance doesn't kill them.
+        if (_shouldProcess != null && !_shouldProcess())
+        {
+            Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
+            return;
+        }
         if (AppConfig.ConfigObject.Recognizer == 2)
         {
             foreach (var output in _outputs)
