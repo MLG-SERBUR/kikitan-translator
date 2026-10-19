@@ -135,7 +135,6 @@ public sealed class MainForm : Form
             c.Controls.Add(Check("Send without waiting for finish", v => _cfg.SendWithoutWaitingForFinish = v, () => _cfg.SendWithoutWaitingForFinish));
             c.Controls.Add(Check("Disable when muted", v => _cfg.DisableWhenMuted = v, () => _cfg.DisableWhenMuted));
             c.Controls.Add(Check("Send user data (OSC)", v => _cfg.SendUserData = v, () => _cfg.SendUserData));
-            c.Controls.Add(Row("Chatbox ms/char:", Num(1, 200, v => _cfg.ChatboxWaitPerCharMs = v, () => _cfg.ChatboxWaitPerCharMs)));
         }));
 
         settings.Controls.Add(Group("API keys", c =>
