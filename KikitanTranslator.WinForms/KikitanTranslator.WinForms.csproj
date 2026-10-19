@@ -60,4 +60,16 @@
     <!-- FORK (feed-overlay): distribution is a portable zip built by
          .github/workflows/winforms-installer.yml. No installer. -->
 
+    <!-- FORK: copy libcurl native libs to publish output (same as upstream's
+         Photino CopyLibcurl target). Without these, the Google Translate curl
+         fallback throws DllNotFoundException. -->
+    <Target Name="CopyLibcurl" AfterTargets="Publish">
+        <ItemGroup>
+            <LibcurlFiles Include="$(MSBuildProjectDirectory)/../KikitanTranslator.Base/libcurl/**/*" />
+        </ItemGroup>
+        <Copy SourceFiles="@(LibcurlFiles)"
+              DestinationFiles="@(LibcurlFiles->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')"
+              SkipUnchangedFiles="true" />
+    </Target>
+
 </Project>
