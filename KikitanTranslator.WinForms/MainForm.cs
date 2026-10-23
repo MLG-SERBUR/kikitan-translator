@@ -125,7 +125,7 @@ public sealed class MainForm : Form
             c.Controls.Add(Row("Translator:", TranslatorCombo()));
             c.Controls.Add(MicLabeledRow());
             c.Controls.Add(Check("Show transcription", v => _cfg.FeedShowTranscription = v, () => _cfg.FeedShowTranscription));
-            c.Controls.Add(Check("Translate mic audio", v => _cfg.DesktopTranslation = v, () => _cfg.DesktopTranslation));
+            c.Controls.Add(Check("Translate incoming speech", v => _cfg.DesktopTranslation = v, () => _cfg.DesktopTranslation));
             c.Controls.Add(Check("Transcription only (no translation)", v => _cfg.SpeechToTextOnly = v, () => _cfg.SpeechToTextOnly));
         }));
 
