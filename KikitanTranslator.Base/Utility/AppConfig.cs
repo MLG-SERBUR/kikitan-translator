@@ -576,6 +576,24 @@ public class ConfigObject : INotifyPropertyChanged
             }
         }
     }
+    // FORK: run the microphone pipeline at all ("Translate my speech").
+    // Default true. When false, Start() skips the mic pipeline entirely so
+    // only incoming (desktop) speech is transcribed/translated.
+    [JsonProperty("mic_translation")] private bool _micTranslation = true;
+
+    [JsonIgnore]
+    public bool MicTranslation
+    {
+        get => _micTranslation;
+        set
+        {
+            if (_micTranslation != value)
+            {
+                _micTranslation = value;
+                OnPropertyChanged();
+            }
+        }
+    }
     // FORK: log text size in the app window. Default 10.
     [JsonProperty("log_font_size")] private int _logFontSize = 10;
 
