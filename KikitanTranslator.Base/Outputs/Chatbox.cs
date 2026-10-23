@@ -21,13 +21,23 @@ public class Chatbox : IOutput
             
             if (AppConfig.ConfigObject.SpeechToTextOnly) OscChatbox.SendMessage(recognized, true);
             else if (AppConfig.ConfigObject.TranslationOnly) OscChatbox.SendMessage(translated, true);
-            else OscChatbox.SendMessage($"{translated} ({recognized})", true);
+            else OscChatbox.SendMessage(FormatMessage(recognized, translated), true);
             Log.Debug($"[OSC]  Chatbox send completed: final={final}, sourceChars={recognized.Length}, translationChars={translated.Length}");
         } catch (Exception e)
         {
             Log.Error($"[OSC]  Error sending OSC message! Reason: {e}");
         }
     }
+
+    // FORK: in the chatbox, inline parentheses around RTL text break the bidi
+    // ordering. When either side is RTL, put the transcription on its own
+    // line instead, no parentheses.
+    private static string FormatMessage(string recognized, string translated)
+        => IsRtl(recognized) || IsRtl(translated)
+            ? $"{translated}\n{recognized}"
+            : $"{translated} ({recognized})";
+
+    private static bool IsRtl(string text) => text.Any(c => c is >= '\u0590' and <= '\u08FF');
 
     public bool IsDelayed() => true;
 }
