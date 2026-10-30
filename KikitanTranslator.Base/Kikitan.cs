@@ -21,6 +21,10 @@ public class Kikitan : IDisposable
     // FORK: optional gate checked at recognition time (not send time), so speech
     // captured before the gate closed still completes. Used for mic-mute.
     private readonly Func<bool>? _shouldProcess;
+    // FORK: true once an interim result passes the gate for the current
+    // utterance. A final result is allowed through if the utterance started
+    // while the gate was open, even if it closed mid-utterance.
+    private bool _utteranceStarted;
     
     public event OnRecognizerStatus? OnRecognizerStatusChanged;
 
@@ -61,12 +65,29 @@ public class Kikitan : IDisposable
     private void OnRecognition(string text, bool final)
     {
         if (final) Log.Debug($"[KKTN] Final recognition received: desktop={_isLoopback}, chars={text.Length}, running={_running}");
-        // FORK: drop here, before any translation work. In-flight items already
-        // queued are unaffected, so muting mid-utterance doesn't kill them.
-        if (_shouldProcess != null && !_shouldProcess())
+        // FORK: gate logic. Interim results passing the gate mark the utterance
+        // as started; a final result is allowed through if the utterance started
+        // while the gate was open, even if it closed mid-utterance (e.g. user
+        // muted before the recognizer finished). Utterances that never passed
+        // the gate are still dropped.
+        bool gateOpen = _shouldProcess == null || _shouldProcess();
+        if (!final)
         {
-            Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
-            return;
+            if (gateOpen) _utteranceStarted = true;
+            else
+            {
+                Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
+                return;
+            }
+        }
+        else
+        {
+            if (!_utteranceStarted && !gateOpen)
+            {
+                Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
+                return;
+            }
+            _utteranceStarted = false;
         }
         if (AppConfig.ConfigObject.Recognizer == 2)
         {
