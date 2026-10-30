@@ -459,6 +459,9 @@ public sealed class MainForm : Form
     private void WireEngine()
     {
         _engine.StatusChanged += msg => BeginInvoke(() => _status.Text = msg);
+        // FORK: show a mute state pulled at startup even if it arrived
+        // before this form wired up (the gate in AppEngine already has it).
+        _muted.Text = _engine.IsMuted == true ? "MUTED" : "";
         _engine.MuteChanged += muted => BeginInvoke(() => _muted.Text = muted ? "MUTED" : "");
         _engine.Feed.EntryAdded += entry => BeginInvoke(() =>
         {
