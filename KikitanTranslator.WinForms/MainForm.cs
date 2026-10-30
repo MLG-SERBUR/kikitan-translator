@@ -14,6 +14,7 @@ public sealed class MainForm : Form
     private Label _status = null!;
     private Label _muted = null!;
     private TextBox _feedBox = null!;
+    private TextBox _manualBox = null!;
     private int _feedLineCount;
     private Button _updateButton = null!;
     private Updater _updater = null!;
@@ -115,6 +116,21 @@ public sealed class MainForm : Form
             c.Controls.Add(_updateButton);
             c.Controls.Add(Row("Log size:", Num(8, 24, v => { _cfg.LogFontSize = v; ApplyLogFont(); }, () => _cfg.LogFontSize)));
             c.Controls.Add(Row("UI size %:", UiScaleRow()));
+        }));
+
+        settings.Controls.Add(Group("Send text", c =>
+        {
+            // FORK: typed text to translate directly. Enter sends, same as
+            // the Send button. Bypasses the mute gate (see AppEngine).
+            _manualBox = new TextBox { Width = S(280) };
+            _manualBox.KeyDown += (_, e) =>
+            {
+                if (e.KeyCode == Keys.Enter) { e.SuppressKeyPress = true; SendManualText(); }
+            };
+            var send = new Button { Text = "Send", Width = S(90), Height = S(28) };
+            send.Click += (_, _) => SendManualText();
+            c.Controls.Add(_manualBox);
+            c.Controls.Add(send);
         }));
 
         settings.Controls.Add(Group("Speech", c =>
@@ -428,6 +444,16 @@ public sealed class MainForm : Form
     {
         if (_feedBox != null)
             _feedBox.Font = new Font("Consolas", Math.Clamp(_cfg.LogFontSize, 8, 24));
+    }
+
+    private void SendManualText()
+    {
+        var text = _manualBox.Text.Trim();
+        if (text.Length == 0) return;
+        if (!_engine.IsRunning) { _status.Text = "Not running"; return; }
+        if (!_engine.ManualTranslate(text)) { _status.Text = "Mic pipeline off: turn on \"Translate my speech\""; return; }
+        _manualBox.Clear();
+        _manualBox.Focus();
     }
 
     private void WireEngine()

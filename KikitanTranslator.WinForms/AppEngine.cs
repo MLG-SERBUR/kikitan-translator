@@ -251,6 +251,17 @@ public sealed class AppEngine : IDisposable
         StatusChanged?.Invoke("Running");
     }
 
+    // FORK: typed text to translate directly. Goes through the mic pipeline
+    // (same translator, chatbox, feed, and OSC outputs as speech) but
+    // bypasses the mute gate in Kikitan.ManualTranslate, so it works while
+    // muted. Returns false when the mic pipeline is not running.
+    public bool ManualTranslate(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text) || _microphoneKikitan == null) return false;
+        _microphoneKikitan.ManualTranslate(text.Trim());
+        return true;
+    }
+
     public void Stop()
     {
         _microphoneKikitan?.Dispose();

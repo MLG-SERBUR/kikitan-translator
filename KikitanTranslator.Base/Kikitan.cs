@@ -31,6 +31,10 @@ public class Kikitan : IDisposable
     private bool _utteranceStarted;
     private string _lastInterim = "";
     private bool _cutOff;
+    // FORK: set by ManualTranslate. Typed text is an explicit user action,
+    // not mic input, so it bypasses the mute gate and leaves mic utterance
+    // state (including a pending cut-off suppression) untouched.
+    private bool _manualBypass;
     
     public event OnRecognizerStatus? OnRecognizerStatusChanged;
 
@@ -80,6 +84,7 @@ public class Kikitan : IDisposable
         // starts a new utterance, even if the recognizer has not segmented
         // yet. Utterances that never passed the gate are still dropped.
         bool gateOpen = _shouldProcess == null || _shouldProcess();
+        bool isManual = false;
         if (!final)
         {
             if (_cutOff)
@@ -120,19 +125,24 @@ public class Kikitan : IDisposable
         }
         else
         {
-            if (_cutOff)
+            isManual = _manualBypass;
+            _manualBypass = false;
+            if (!isManual)
             {
-                _cutOff = false;
-                Log.Debug($"[KKTN] Final suppressed after gate cut-off: desktop={_isLoopback}");
-                return;
+                if (_cutOff)
+                {
+                    _cutOff = false;
+                    Log.Debug($"[KKTN] Final suppressed after gate cut-off: desktop={_isLoopback}");
+                    return;
+                }
+                if (!_utteranceStarted && !gateOpen)
+                {
+                    Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
+                    return;
+                }
+                _utteranceStarted = false;
+                _lastInterim = "";
             }
-            if (!_utteranceStarted && !gateOpen)
-            {
-                Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
-                return;
-            }
-            _utteranceStarted = false;
-            _lastInterim = "";
         }
         if (!final)
         {
@@ -153,12 +163,16 @@ public class Kikitan : IDisposable
             return;
         }
 
-        ProcessFinal(text);
+        ProcessFinal(text, isManual);
     }
 
-    private void ProcessFinal(string text)
+    private void ProcessFinal(string text, bool manual = false)
     {
-        if (AppConfig.ConfigObject.Recognizer == 2)
+        // FORK: manual text is plain typed text, not a Gemini recognizer
+        // "input|output" pair, so it always goes through the translator even
+        // when the Gemini recognizer is selected (which otherwise forwards
+        // its own already-translated output and would split-crash on "|").
+        if (!manual && AppConfig.ConfigObject.Recognizer == 2)
         {
             foreach (var output in _outputs)
             {
@@ -229,7 +243,11 @@ public class Kikitan : IDisposable
         }
     }
 
-    public void ManualTranslate(string text) => OnRecognition(text, true);
+    public void ManualTranslate(string text)
+    {
+        _manualBypass = true;
+        OnRecognition(text, true);
+    }
 
     public void Dispose()
     {
