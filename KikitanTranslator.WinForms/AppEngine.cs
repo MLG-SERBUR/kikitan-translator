@@ -65,7 +65,9 @@ public sealed class AppEngine : IDisposable
         };
         _oscWatcher.Start();
 
-        Feed.EntryAdded += _ => PushFeedToOverlay();
+        // FORK: only incoming entries wake the overlay. Own-mic entries used
+        // to trigger a pipe write (and overlay.Show()) with nothing new in it.
+        Feed.EntryAdded += e => { if (e.FromDesktop) PushFeedToOverlay(); };
         AppConfig.OnUpdate += OnConfigUpdated;
 
         try

@@ -166,7 +166,7 @@ public sealed class MainForm : Form
         _feedBox = new TextBox
         {
             Dock = DockStyle.Fill, Multiline = true, ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical, WordWrap = false,
+            ScrollBars = ScrollBars.Vertical, WordWrap = true,
             Font = new Font("Consolas", 10),
             BackColor = Color.FromArgb(20, 20, 20), ForeColor = Color.Gainsboro,
         };
