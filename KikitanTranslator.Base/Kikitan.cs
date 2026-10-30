@@ -18,13 +18,19 @@ public class Kikitan : IDisposable
 
     private bool _running;
     private bool _isLoopback;
-    // FORK: optional gate checked at recognition time (not send time), so speech
-    // captured before the gate closed still completes. Used for mic-mute.
+    // FORK: optional gate checked at recognition time (not send time).
+    // Used for mic-mute: closing the gate mid-utterance cuts the utterance
+    // off at the last interim that passed the gate, instead of letting the
+    // recognizer's later final (which may include speech after the mute)
+    // through.
     private readonly Func<bool>? _shouldProcess;
     // FORK: true once an interim result passes the gate for the current
-    // utterance. A final result is allowed through if the utterance started
-    // while the gate was open, even if it closed mid-utterance.
+    // utterance. Last interim that passed the gate; _cutOff suppresses the
+    // cut-off utterance's later final, which would otherwise duplicate the
+    // cut-off send or include post-mute speech.
     private bool _utteranceStarted;
+    private string _lastInterim = "";
+    private bool _cutOff;
     
     public event OnRecognizerStatus? OnRecognizerStatusChanged;
 
@@ -66,14 +72,46 @@ public class Kikitan : IDisposable
     {
         if (final) Log.Debug($"[KKTN] Final recognition received: desktop={_isLoopback}, chars={text.Length}, running={_running}");
         // FORK: gate logic. Interim results passing the gate mark the utterance
-        // as started; a final result is allowed through if the utterance started
-        // while the gate was open, even if it closed mid-utterance (e.g. user
-        // muted before the recognizer finished). Utterances that never passed
-        // the gate are still dropped.
+        // as started and update the last good interim. The first interim after
+        // the gate closes cuts the utterance off: the last good interim is
+        // finalized immediately (mute = done talking) and the recognizer's
+        // later final for that utterance is suppressed, so speech after the
+        // mute never rides along in it. An interim after the gate reopens
+        // starts a new utterance, even if the recognizer has not segmented
+        // yet. Utterances that never passed the gate are still dropped.
         bool gateOpen = _shouldProcess == null || _shouldProcess();
         if (!final)
         {
-            if (gateOpen) _utteranceStarted = true;
+            if (_cutOff)
+            {
+                if (!gateOpen)
+                {
+                    Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
+                    return;
+                }
+                _cutOff = false;
+                _utteranceStarted = true;
+                if (text.Length > 0) _lastInterim = text;
+            }
+            else if (gateOpen)
+            {
+                _utteranceStarted = true;
+                if (text.Length > 0) _lastInterim = text;
+            }
+            else if (_utteranceStarted)
+            {
+                _cutOff = true;
+                _utteranceStarted = false;
+                var cutoff = _lastInterim;
+                _lastInterim = "";
+                if (cutoff.Length > 0)
+                {
+                    Log.Debug($"[KKTN] Utterance cut off by gate: desktop={_isLoopback}, chars={cutoff.Length}");
+                    ProcessFinal(cutoff);
+                }
+                else Log.Debug($"[KKTN] Utterance cut off by gate with no interim to finalize: desktop={_isLoopback}");
+                return;
+            }
             else
             {
                 Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
@@ -82,29 +120,60 @@ public class Kikitan : IDisposable
         }
         else
         {
+            if (_cutOff)
+            {
+                _cutOff = false;
+                Log.Debug($"[KKTN] Final suppressed after gate cut-off: desktop={_isLoopback}");
+                return;
+            }
             if (!_utteranceStarted && !gateOpen)
             {
                 Log.Debug($"[KKTN] Recognition dropped by gate: desktop={_isLoopback}, final={final}");
                 return;
             }
             _utteranceStarted = false;
+            _lastInterim = "";
         }
+        if (!final)
+        {
+            if (AppConfig.ConfigObject.Recognizer == 2)
+            {
+                foreach (var output in _outputs)
+                {
+                    output.Send(text.Split("|")[0], text.Split("|")[1], false);
+                }
+            }
+            else
+            {
+                foreach (var output in _outputs)
+                {
+                    output.Send(text, "", false);
+                }
+            }
+            return;
+        }
+
+        ProcessFinal(text);
+    }
+
+    private void ProcessFinal(string text)
+    {
         if (AppConfig.ConfigObject.Recognizer == 2)
         {
             foreach (var output in _outputs)
             {
-                output.Send(text.Split("|")[0], text.Split("|")[1], final);
+                output.Send(text.Split("|")[0], text.Split("|")[1], true);
             }
 
             return;
         }
-        
+
         foreach (var output in _outputs)
         {
             output.Send(text, "", false);
         }
 
-        if (!final || text.Length == 0) return;
+        if (text.Length == 0) return;
 
         try
         {
